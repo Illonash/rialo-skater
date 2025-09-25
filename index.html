@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rialo Runner</title>
+  <style>
+    html, body { margin: 0; padding: 0; background:#0b0b0b; height:100%; }
+    #game-root { width: 100vw; height: 100vh; display:grid; place-items:center; }
+    /* Optional: loading splash if JS not ready yet */
+    .loading { color:#fff; font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto; opacity:.6 }
+  </style>
+  <!-- Phaser CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-root"><div class="loading">Loading Rialo Runner…</div></div>
+  <script>
+// ---------------------------------------------------------
+// RIALO RUNNER – Phaser 3 (16:9) MVP Skeleton
+// Scenes: Boot -> Splash -> Menu -> Game -> GameOver
+// Controls: SPACE = jump, DOWN = slide, P = pause
+// Leaderboard: localStorage (top 10)
+// ---------------------------------------------------------
+
+const GAME_WIDTH = 1280;   // 16:9
+const GAME_HEIGHT = 720;    // 16:9
+const STORAGE_KEY = 'rialo_runner_leaderboard_v1';
+
+// Helper: Leaderboard local
+const Leaderboard = {
+  load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  },
+  save(rows) { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows.slice(0,10))); },
+  push(name, score) {
+    const rows = this.load();
+    rows.push({ name, score, ts: Date.now() });
+    rows.sort((a,b) => b.score - a.score);
+    this.save(rows);
+    return rows;
+  }
+};
+
+// Shared game state
+const G = {
+  selectedChar: 'runner_boy', // default
+  selectedMap: 'city',
+  sfx: {},
+};
+
+// ---------------- BootScene ----------------
+class BootScene extends Phaser.Scene {
+  constructor(){ super('boot'); }
+  preload(){
+    // NOTE: Place your assets in ./assets/ with these filenames
+    // Characters (sprite sheets): 256x256 per frame
+    //  - ./assets/runner_boy.png
+    //  - ./assets/runner_girl.png
+    // Each sheet should be a single row of frames: run(6)+jump(3)+slide(2)+crash(2) = 13 frames total
+
+    this.load.spritesheet('runner_boy', 'assets/runner_boy.png', { frameWidth:256, frameHeight:256 });
+    this.load.spritesheet('runner_girl', 'assets/runner_girl.png', { frameWidth:256, frameHeight:256 });
+
+    // UI / Splash (optional, can be text-only if not present)
+    this.load.image('logo', 'assets/logo_rialo.png'); // optional
+
+    // Map layers (parallax) – placeholders if not present
+    this.load.image('bg_sky', 'assets/city_sky.png');
+    this.load.image('bg_mid', 'assets/city_mid.png');
+    this.load.image('bg_front', 'assets/city_front.png');
+
+    // Ground, obstacle, collectible
+    this.load.image('ground', 'assets/ground_tile.png');
+    this.load.image('ob_low', 'assets/obstacle_low.png');
+    this.load.image('ob_high', 'assets/obstacle_high.png');
+    this.load.image('gem', 'assets/rialo_gem.png');
+
+    // Audio (optional)
+    this.load.audio('bgm_city', 'assets/audio/bgm_city.mp3');
+    this.load.audio('sfx_jump', 'assets/audio/jump.wav');
+    this.load.audio('sfx_collect', 'assets/audio/collect.wav');
+    this.load.audio('sfx_hit', 'assets/audio/hit.wav');
+  }
+  create(){
+    this.scene.start('splash');
+  }
+}
+
+// ---------------- SplashScene ----------------
+class SplashScene extends Phaser.Scene {
+  constructor(){ super('splash'); }
+  create(){
+    const cx = GAME_WIDTH/2, cy = GAME_HEIGHT/2;
+    this.cameras.main.setBackgroundColor('#0e0e0e');
+
+    const logo = this.add.image(cx, cy-120, 'logo').setOrigin(0.5);
+    if(!logo.texture.key || logo.texture.key==='__MISSING') {
+      // Fallback text if no logo asset
+      this.add.text(cx, cy-160, 'Rialo', { fontFamily:'system-ui', fontSize: 64, color:'#ffffff'}).setOrigin(0.5);
+    }
+    this.add.text(cx, cy-40, 'Rialo Runner', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#ffffff'}).setOrigin(0.5);
+    this.add.text(cx, cy+5, 'Rethink Rebuild Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7'}).setOrigin(0.5);
+
+    const btn = this.add.rectangle(cx, cy+90, 240, 64, 0xFFC62E, 1).setInteractive({ useHandCursor:true});
+    this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui', fontSize: 28, color:'#111', fontStyle:'bold' }).setOrigin(0.5);
+    btn.on('pointerup', ()=> this.scene.start('menu'));
+  }
+}
+
+// ---------------- MenuScene ----------------
+class MenuScene extends Phaser.Scene {
+  constructor(){ super('menu'); }
+  create(){
+    this.cameras.main.setBackgroundColor('#0f1216');
+
+    // Title
+    this.add.text(40, 36, 'Select Character', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+
+    // Character cards
+    const chars = [
+      { key:'runner_boy', label:'Runner Boy' },
+      { key:'runner_girl', label:'Runner Girl' },
+    ];
+
+    const startX = 200, startY = 160, gapX = 360;
+    chars.forEach((ch, i)=>{
+      const x = startX + i*gapX;
+      const card = this.add.rectangle(x, startY, 300, 360, 0x12161c, 1).setStrokeStyle(2, 0x2c3440);
+      const p = this.add.sprite(x, startY-40, ch.key, 0).setScale(1.3);
+      this.add.text(x, startY+140, ch.label, { fontFamily:'system-ui', fontSize: 20, color:'#fff' }).setOrigin(0.5);
+
+      card.setInteractive({ useHandCursor:true }).on('pointerup', ()=>{
+        G.selectedChar = ch.key;
+        this.highlightSel(x, startY, card);
+      });
+    });
+
+    // Map selector (for now only City)
+    this.add.text(40, 380, 'Select Map', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+    const mapCard = this.add.rectangle(200, 470, 300, 160, 0x12161c, 1).setStrokeStyle(2, 0x2c3440);
+    this.add.text(200, 470, 'City', { fontFamily:'system-ui', fontSize: 22, color:'#fff'}).setOrigin(0.5);
+
+    // Start button
+    const startBtn = this.add.rectangle(GAME_WIDTH-200, GAME_HEIGHT-80, 220, 60, 0x35e1a1, 1).setInteractive({ useHandCursor:true });
+    this.add.text(startBtn.x, startBtn.y, 'START', { fontFamily:'system-ui', fontSize:26, color:'#111', fontStyle:'bold'}).setOrigin(0.5);
+    startBtn.on('pointerup', ()=> this.scene.start('game'));
+
+    // default highlight
+    this.highlightSel(startX, startY, null, true);
+  }
+  highlightSel(x,y, card, initial=false){
+    if(this.sel) this.sel.destroy();
+    this.sel = this.add.rectangle(x||200, y||160, 304, 364).setStrokeStyle(4, 0x35e1a1);
+    if(initial) this.sel.setVisible(false);
+  }
+}
+
+// ---------------- GameScene ----------------
+class GameScene extends Phaser.Scene {
+  constructor(){ super('game'); }
+  create(){
+    // Physics world
+    this.physics.world.setBounds(0, 0, Number.MAX_SAFE_INTEGER/4, GAME_HEIGHT);
+
+    // Parallax background (with graceful fallback rectangles)
+    const sky = this.add.image(0,0,'bg_sky').setOrigin(0);
+    const mid = this.add.image(0,0,'bg_mid').setOrigin(0);
+    const front = this.add.image(0,0,'bg_front').setOrigin(0);
+    [sky,mid,front].forEach(img=>{ if(!img.texture || img.texture.key==='__MISSING'){ img.destroy(); }});
+
+    this.bgFallback = this.add.layer();
+    if(!sky || sky.destroyed){
+      this.bgFallback.add(this.add.rectangle(0,0,GAME_WIDTH,GAME_HEIGHT,0x0b1320).setOrigin(0));
+      this.bgFallback.add(this.add.rectangle(0, GAME_HEIGHT-180, GAME_WIDTH, 180, 0x0e1b2e).setOrigin(0));
+    }
+
+    // Ground
+    const groundY = GAME_HEIGHT - 90;
+    this.ground = this.physics.add.staticGroup();
+    for(let x=0;x<GAME_WIDTH+128;x+=128){
+      const tile = this.add.image(x, groundY, 'ground').setOrigin(0.5, 0.5);
+      if(!tile.texture || tile.texture.key==='__MISSING'){
+        // fallback rectangle
+        this.add.rectangle(x, groundY, 128, 32, 0x263445).setOrigin(0.5,0.5);
+      }
+    }
+
+    // Player
+    this.player = this.physics.add.sprite(200, groundY-60, G.selectedChar, 0).setScale(1.1);
+    this.player.setCollideWorldBounds(true);
+    this.isSliding = false;
+
+    // Animations indices based on 13 frames layout
+    // 0..5 run, 6..8 jump, 9..10 slide, 11..12 crash
+    this.anims.create({ key:'run', frames:this.anims.generateFrameNumbers(G.selectedChar,{ start:0,end:5 }), frameRate:12, repeat:-1 });
+    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers(G.selectedChar,{ start:6,end:8 }), frameRate:10, repeat:0 });
+    this.anims.create({ key:'slide', frames:this.anims.generateFrameNumbers(G.selectedChar,{ start:9,end:10 }), frameRate:10, repeat:-1 });
+    this.anims.create({ key:'crash', frames:this.anims.generateFrameNumbers(G.selectedChar,{ start:11,end:12 }), frameRate:6, repeat:0 });
+    this.player.play('run');
+
+    // Input
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyP = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
+
+    // Groups
+    this.obstacles = this.physics.add.group();
+    this.gems = this.physics.add.group();
+
+    // Collisions
+    this.physics.add.collider(this.player, this.obstacles, this.onHit, null, this);
+
+    // Score
+    this.score = 0;
+    this.scoreText = this.add.text(20, 20, 'Score: 0', { fontFamily:'system-ui', fontSize:24, color:'#fff' }).setScrollFactor(0);
+
+    // Camera scroll to simulate running
+    this.cameras.main.startFollow(this.player, true, 1, 1, -400, 0);
+
+    // Spawn timers
+    this.time.addEvent({ delay: 1200, loop: true, callback: ()=> this.spawnObstacle(groundY) });
+    this.time.addEvent({ delay: 900, loop: true, callback: ()=> this.spawnGem(groundY) });
+
+    // Audio
+    G.sfx.jump = this.sound.add('sfx_jump', { volume:.6 });
+    G.sfx.collect = this.sound.add('sfx_collect', { volume:.6 });
+    G.sfx.hit = this.sound.add('sfx_hit', { volume:.7 });
+    this.bgm = this.sound.add('bgm_city', { loop:true, volume:.35 });
+    if(this.bgm && this.bgm.key !== '__MISSING') this.bgm.play();
+  }
+  update(){
+    // Constant forward velocity
+    this.player.setVelocityX(260);
+
+    // Jump
+    if(Phaser.Input.Keyboard.JustDown(this.cursors.space) && this.player.body.onFloor()){
+      this.player.setVelocityY(-520);
+      this.player.play('jump', true);
+      G.sfx.jump && G.sfx.jump.play();
+      this.isSliding = false;
+    }
+
+    // Slide (hold down)
+    if(this.cursors.down.isDown && this.player.body.onFloor()){
+      if(!this.isSliding){ this.player.play('slide', true); this.isSliding = true; }
+    } else if(this.player.body.onFloor() && !this.player.anims.isPlaying){
+      this.player.play('run', true); this.isSliding = false;
+    }
+
+    // Collect gems
+    this.physics.overlap(this.player, this.gems, (player, gem)=>{
+      gem.destroy();
+      this.score += 10;
+      this.scoreText.setText('Score: ' + this.score);
+      G.sfx.collect && G.sfx.collect.play();
+    });
+  }
+  spawnObstacle(groundY){
+    const type = Math.random() < 0.5 ? 'ob_low' : 'ob_high';
+    const y = type==='ob_low' ? groundY-40 : groundY-90;
+    const ob = this.obstacles.create(this.cameras.main.worldView.right + 80, y, type);
+    if(!ob.texture || ob.texture.key==='__MISSING'){
+      // fallback visuals
+      const color = type==='ob_low'? 0xD94848 : 0xE3C833;
+      const rect = this.add.rectangle(this.cameras.main.worldView.right + 80, y, type==='ob_low'? 50:140, type==='ob_low'? 60:30, color).setOrigin(0.5);
+      this.physics.add.existing(rect);
+      rect.body.setVelocityX(-260);
+      rect.body.setAllowGravity(false);
+      this.obstacles.add(rect);
+    } else {
+      ob.setVelocityX(-260);
+      ob.setImmovable(true);
+      ob.setSize(ob.width*0.9, ob.height*0.9, true);
+      ob.body.allowGravity = false;
+    }
+  }
+  spawnGem(groundY){
+    const y = groundY - 120 - Math.random()*120;
+    const gem = this.gems.create(this.cameras.main.worldView.right + 80, y, 'gem');
+    if(!gem.texture || gem.texture.key==='__MISSING'){
+      const circ = this.add.circle(this.cameras.main.worldView.right + 80, y, 12, 0x35e1a1);
+      this.physics.add.existing(circ);
+      circ.body.setVelocityX(-260);
+      circ.body.setAllowGravity(false);
+      this.gems.add(circ);
+    } else {
+      gem.setVelocityX(-260);
+      gem.body.allowGravity = false;
+    }
+  }
+  onHit(){
+    if(this.gameOver) return;
+    this.gameOver = true;
+    G.sfx.hit && G.sfx.hit.play();
+    this.player.play('crash', true);
+    this.player.setVelocity(0);
+    this.time.delayedCall(900, ()=>{
+      this.scene.start('gameover', { score: this.score });
+      this.sound.stopAll();
+    });
+  }
+}
+
+// ---------------- GameOverScene ----------------
+class GameOverScene extends Phaser.Scene {
+  constructor(){ super('gameover'); }
+  init(data){ this.finalScore = data.score || 0; }
+  create(){
+    this.cameras.main.setBackgroundColor('#101010');
+    const cx = GAME_WIDTH/2, cy = GAME_HEIGHT/2;
+
+    this.add.text(cx, cy-120, 'Game Over', { fontFamily:'system-ui', fontSize: 54, color:'#fff', fontStyle:'bold' }).setOrigin(0.5);
+    this.add.text(cx, cy-60, `Score: ${this.finalScore}`, { fontFamily:'system-ui', fontSize: 28, color:'#fff' }).setOrigin(0.5);
+
+    // Name input (very simple prompt)
+    const name = prompt('Masukkan nama untuk leaderboard:', localStorage.getItem('rr_name') || 'player');
+    if(name){ localStorage.setItem('rr_name', name); }
+    const rows = Leaderboard.push(name || 'player', this.finalScore);
+
+    // Render leaderboard table (top 10)
+    const head = this.add.text(cx, cy+10, 'Leaderboard (Local)', { fontFamily:'system-ui', fontSize:22, color:'#a7a7a7' }).setOrigin(0.5);
+
+    const startY = cy + 40;
+    rows.slice(0,10).forEach((r,i)=>{
+      const y = startY + i*26;
+      const color = (r.name === (name||'player') && r.score === this.finalScore) ? '#35e1a1' : '#ffffff';
+      this.add.text(cx-140, y, String(i+1).padStart(2,'0'), { fontFamily:'monospace', fontSize:18, color }).setOrigin(0,0.5);
+      this.add.text(cx-90, y, r.name.slice(0,14), { fontFamily:'system-ui', fontSize:18, color }).setOrigin(0,0.5);
+      this.add.text(cx+160, y, r.score.toString(), { fontFamily:'system-ui', fontSize:18, color }).setOrigin(1,0.5);
+    });
+
+    // Buttons
+    const playAgain = this.add.rectangle(cx-100, GAME_HEIGHT-80, 200, 56, 0x35e1a1, 1).setInteractive({useHandCursor:true});
+    this.add.text(playAgain.x, playAgain.y, 'PLAY AGAIN', { fontFamily:'system-ui', fontSize:20, color:'#111', fontStyle:'bold'}).setOrigin(0.5);
+    playAgain.on('pointerup', ()=> this.scene.start('game'));
+
+    const mainMenu = this.add.rectangle(cx+160, GAME_HEIGHT-80, 200, 56, 0xFFC62E, 1).setInteractive({useHandCursor:true});
+    this.add.text(mainMenu.x, mainMenu.y, 'MAIN MENU', { fontFamily:'system-ui', fontSize:20, color:'#111', fontStyle:'bold'}).setOrigin(0.5);
+    mainMenu.on('pointerup', ()=> this.scene.start('menu'));
+  }
+}
+
+// ---------------- Game Config ----------------
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-root',
+  backgroundColor: '#000000',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: GAME_WIDTH, height: GAME_HEIGHT },
+  physics: { default: 'arcade', arcade: { gravity: { y: 1200 }, debug: false } },
+  scene: [BootScene, SplashScene, MenuScene, GameScene, GameOverScene],
+};
+
+new Phaser.Game(config);
+  </script>
+</body>
+</html>
