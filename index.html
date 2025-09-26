@@ -85,9 +85,31 @@ class BootScene extends Phaser.Scene {
     this.load.audio('sfx_hit', 'assets/audio/hit.wav');
   }
   create(){
-    this.scene.start('splash');
+  const cx = GAME_WIDTH/2, cy = GAME_HEIGHT/2;
+
+  // === BACKGROUND Gambar Fullscreen ===
+  const bg = this.add.image(0, 0, 'splash_bg')
+    .setOrigin(0, 0)
+    .setDisplaySize(GAME_WIDTH, GAME_HEIGHT); // fit 16:9
+
+  // (Opsional) Kalau kamu tetap mau teks judul tambahan, boleh, tapi karena gambar sudah punya judul,
+  // biasanya teks ini tidak dibutuhkan. Boleh dihapus saja baris2 teks lama.
+
+  // === Tombol PLAY (di atas gambar) ===
+  const btn = this.add.rectangle(cx, cy + 190, 240, 64, 0xFFC62E, 1)
+    .setInteractive({ useHandCursor: true });
+  this.add.text(btn.x, btn.y, 'PLAY', {
+    fontFamily: 'system-ui', fontSize: 28, color: '#111', fontStyle: 'bold'
+  }).setOrigin(0.5);
+
+  btn.on('pointerup', () => this.scene.start('menu'));
+
+  // (Opsional) ikon gamepad di sebelah tombol
+  if (this.textures.exists('gamepad')) {
+    this.add.image(cx + 180, cy + 190, 'gamepad').setScale(0.6).setOrigin(0.5);
   }
 }
+
 
 // ---------------- SplashScene ----------------
 class SplashScene extends Phaser.Scene {
