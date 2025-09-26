@@ -113,24 +113,29 @@ class BootScene extends Phaser.Scene {
 
 // ---------------- SplashScene ----------------
 class SplashScene extends Phaser.Scene {
-  constructor(){ super('splash'); }
-  create(){
-    const cx = GAME_WIDTH/2, cy = GAME_HEIGHT/2;
-    this.cameras.main.setBackgroundColor('#0e0e0e');
+  constructor() {
+    super('splash');
+  }
 
+  create() {
+    const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
+
+    // === Gambar splash buatanmu sebagai background ===
     const bg = this.add.image(0, 0, 'splash_bg')
-  .setOrigin(0, 0)
-  .setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
-    if(!logo.texture.key || logo.texture.key==='__MISSING') {
-      // Fallback text if no logo asset
-      this.add.text(cx, cy-160, 'Rialo', { fontFamily:'system-ui', fontSize: 64, color:'#ffffff'}).setOrigin(0.5);
-    }
-    this.add.text(cx, cy-40, 'Rialo Runner', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#ffffff'}).setOrigin(0.5);
-    this.add.text(cx, cy+5, 'Rethink Rebuild Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7'}).setOrigin(0.5);
+      .setOrigin(0, 0)
+      .setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
 
-    const btn = this.add.rectangle(cx, cy+90, 240, 64, 0xFFC62E, 1).setInteractive({ useHandCursor:true});
-    this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui', fontSize: 28, color:'#111', fontStyle:'bold' }).setOrigin(0.5);
-    btn.on('pointerup', ()=> this.scene.start('menu'));
+    // === Tombol PLAY ===
+    const btn = this.add.rectangle(cx, cy + 190, 240, 64, 0xFFC62E, 1)
+      .setInteractive({ useHandCursor: true });
+    this.add.text(btn.x, btn.y, 'PLAY', {
+      fontFamily: 'system-ui',
+      fontSize: 28,
+      color: '#111',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    btn.on('pointerup', () => this.scene.start('menu'));
   }
 }
 
