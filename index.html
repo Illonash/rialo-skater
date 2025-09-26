@@ -53,7 +53,8 @@ class BootScene extends Phaser.Scene {
     this.load.spritesheet('runner_girl', 'assets/runner_girl.png', { frameWidth: 256, frameHeight: 256 });
 
     // --- Splash background image (your 16:9 PNG/JPG) ---
-    this.load.image('splash_bg', 'assets/splash_16x9.png'); // safe: will be checked before used
+    this.load.image('splash_bg', 'assets/splash_16x9.png?v=3');
+ // safe: will be checked before used
 
     // --- City map (optional; code has fallbacks) ---
     this.load.image('bg_sky',   'assets/city_sky.png');
@@ -100,7 +101,6 @@ create() {
 
   btn.on('pointerup', () => this.scene.start('menu'));
 }
-
 
 // ---------------- MenuScene ----------------
 class MenuScene extends Phaser.Scene {
