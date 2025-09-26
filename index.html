@@ -53,8 +53,7 @@ class BootScene extends Phaser.Scene {
     this.load.spritesheet('runner_girl', 'assets/runner_girl.png', { frameWidth: 256, frameHeight: 256 });
 
     // --- Splash background image (your 16:9 PNG/JPG) ---
-    this.load.image('splash_bg', 'assets/splash_16x9.png?v=3');
- // safe: will be checked before used
+    this.load.image('splash_bg', 'assets/splash_16x9.png'); // safe: will be checked before used
 
     // --- City map (optional; code has fallbacks) ---
     this.load.image('bg_sky',   'assets/city_sky.png');
@@ -75,31 +74,25 @@ class BootScene extends Phaser.Scene {
 }
 
 // ---------------- SplashScene ----------------
-create() {
-  const cx = GAME_WIDTH / 2, cy = GAME_HEIGHT / 2;
+class SplashScene extends Phaser.Scene {
+  constructor(){ super('splash'); }
+  create(){
+    const cx = GAME_WIDTH/2, cy = GAME_HEIGHT/2;
 
-  // Taruh gambar di tengah dulu
-  const bg = this.add.image(cx, cy, 'splash_bg').setOrigin(0.5);
+    // Use your splash image if loaded; otherwise text fallback
+    if (this.textures.exists('splash_bg')) {
+      this.add.image(0, 0, 'splash_bg').setOrigin(0,0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+    } else {
+      this.cameras.main.setBackgroundColor('#0e0e0e');
+      this.add.text(cx, cy-60, 'Rialo Runner', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#ffffff' }).setOrigin(0.5);
+      this.add.text(cx, cy-16, 'Rethink Rebuild Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7' }).setOrigin(0.5);
+    }
 
-  // SAFETY: hitung scale dari ukuran object image (bukan dari textures API)
-  if (bg && bg.width && bg.height) {
-    const scaleX = GAME_WIDTH / bg.width;
-    const scaleY = GAME_HEIGHT / bg.height;
-    const scale  = Math.max(scaleX, scaleY);   // COVER (isi penuh, boleh crop tepi)
-    bg.setScale(scale);
-  } else {
-    // Fallback kalau width/height belum kebaca
-    this.add.image(0, 0, 'splash_bg').setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+    // PLAY button
+    const btn = this.add.rectangle(cx, cy + 200, 240, 64, 0xFFC62E, 1).setInteractive({ useHandCursor:true });
+    this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui', fontSize: 28, color:'#111', fontStyle:'bold' }).setOrigin(0.5);
+    btn.on('pointerup', ()=> this.scene.start('menu'));
   }
-
-  // Tombol PLAY
-  const btn = this.add.rectangle(cx, cy + 200, 240, 64, 0xFFC62E, 1)
-    .setInteractive({ useHandCursor: true });
-  this.add.text(btn.x, btn.y, 'PLAY', {
-    fontFamily: 'system-ui', fontSize: 28, color: '#111', fontStyle: 'bold'
-  }).setOrigin(0.5);
-
-  btn.on('pointerup', () => this.scene.start('menu'));
 }
 
 // ---------------- MenuScene ----------------
