@@ -155,70 +155,81 @@ class MenuScene extends Phaser.Scene {
   }
 
   relayout(){
-    const W = this.scale.gameSize.width  || GAME_WIDTH;
-    const H = this.scale.gameSize.height || GAME_HEIGHT;
-    const cx = W/2;
+  const W = this.scale.gameSize.width  || GAME_WIDTH;
+  const H = this.scale.gameSize.height || GAME_HEIGHT;
+  const cx = W/2;
 
-    // grid 2 kolom
-    const margin = Math.max(24, W*0.03);
-    const gapCol = Math.max(24, W*0.04);
-    let colW = (W - margin*2 - gapCol) / 2;
-    const topY = 60;
+  // Grid 2 kolom (kiri=map, kanan=char)
+  const marginX = Math.max(28, W*0.04);
+  const gapCol  = Math.max(28, W*0.04);
+  const topPad  = 60;
+  const belowTitlePad = 18;
+  const titlePadEach  = 10;
+  const bottomPad = 90; // ruang untuk tombol
 
-    // fallback: kalau layar sempit, stack (kolom jadi vertikal)
-    const stack = W < 980;
-    if (stack) { colW = Math.min(680, W - margin*2); }
+  // Lebar kolom
+  let colW = (W - marginX*2 - gapCol) / 2;
+  colW = Math.min(colW, 720); // batas atas agar tidak kebesaran
 
-    // judul
-    this.ui.title.setPosition(cx, topY);
+  // Stack vertikal kalau layar sempit
+  const stack = W < 980;
+  if (stack) colW = Math.min(680, W - marginX*2);
 
-    // ukuran panel: map 16:9, char ~ 9:10
-    const mapH = Math.min(Math.round(colW * 9/16), H*0.45);
-    const charH= Math.min(Math.round(colW * 10/9),  H*0.55);
+  // Title atas
+  this.ui.title.setPosition(cx, topPad);
 
-    // posisi kiri/kanan
-    const leftX  = stack ? cx : (margin + colW/2);
-    const rightX = stack ? cx : (W - margin - colW/2);
+  // Hitung tinggi panel yang SAMA untuk map & char
+  // Ambil sisa tinggi layar -> dipakai untuk panel + jarak-jarak + tombol
+  const tH = this.ui.title.height + belowTitlePad + Math.max(this.ui.mapTitle.height, this.ui.charTitle.height) + titlePadEach;
+  const roomForPanels = H - topPad - tH - bottomPad - 40;
+  let panelH = Phaser.Math.Clamp(Math.round(roomForPanels), 320, 560);
 
-    // MAP (kiri)
-    let y = topY + this.ui.title.height + 18;
-    this.ui.mapTitle.setPosition(leftX, y);
-    y += 10;
-    this.ui.mapFrame.setSize(colW, mapH).setPosition(leftX, y + mapH/2);
-    if (this.ui.mapImage.type === 'Image') {
-      const tex = this.ui.mapImage.texture.getSourceImage();
-      const s = Math.min((colW-12)/tex.width, (mapH-12)/tex.height);
-      this.ui.mapImage.setScale(s).setPosition(leftX, y + mapH/2);
-    } else {
-      this.ui.mapImage.setPosition(leftX, y + mapH/2);
-    }
-    const mapBottom = y + mapH;
+  // Posisi kolom
+  const leftX  = stack ? cx : (marginX + colW/2);
+  const rightX = stack ? cx : (W - marginX - colW/2);
 
-    // CHAR (kanan)
-    let y2 = stack ? (mapBottom + 28) : (topY + this.ui.title.height + 18);
-    this.ui.charTitle.setPosition(rightX, y2);
-    y2 += 10;
-    this.ui.charCard.setSize(colW, charH).setPosition(rightX, y2 + charH/2);
-    this.ui.charHL.setSize(colW+4, charH+4).setPosition(rightX, y2 + charH/2);
-    // gambar di kartu
-    const imgMax = Math.min(colW*0.68, charH*0.68);
-    if (this.ui.charIsSprite) {
-      this.ui.charImg.setScale(Math.min(1.8, imgMax/128)).setPosition(rightX, y2 + charH*0.48);
-    } else {
-      const tex = this.ui.charImg.texture.getSourceImage();
-      const s = Math.min(imgMax/tex.width, imgMax/tex.height);
-      this.ui.charImg.setScale(s*1.2).setPosition(rightX, y2 + charH*0.48);
-    }
-    const charBottom = y2 + charH;
-
-    // START di bawah tengah (selalu terlihat)
-    const contentBottom = stack ? Math.max(mapBottom, charBottom) : Math.max(mapBottom, charBottom);
-    const btnY = Math.min(H - 70, contentBottom + 36);
-    this.ui.startBtn.setPosition(cx, btnY);
-    this.ui.startLbl.setPosition(cx, btnY);
+  // --- MAP (kiri) ---
+  let y = topPad + this.ui.title.height + belowTitlePad;
+  this.ui.mapTitle.setPosition(leftX, y);
+  y += titlePadEach;
+  const mapTop = y;
+  this.ui.mapFrame.setSize(colW, panelH).setPosition(leftX, mapTop + panelH/2);
+  if (this.ui.mapImage.type === 'Image') {
+    const tex = this.ui.mapImage.texture.getSourceImage();
+    const s = Math.min((colW-16)/tex.width, (panelH-16)/tex.height);
+    this.ui.mapImage.setScale(s).setPosition(leftX, mapTop + panelH/2);
+  } else {
+    this.ui.mapImage.setPosition(leftX, mapTop + panelH/2);
   }
-}
+  const mapBottom = mapTop + panelH;
 
+  // --- CHARACTER (kanan) ---
+  let y2 = stack ? (mapBottom + 28) : (topPad + this.ui.title.height + belowTitlePad);
+  this.ui.charTitle.setPosition(rightX, y2);
+  y2 += titlePadEach;
+  const charTop = y2;
+  this.ui.charCard.setSize(colW, panelH).setPosition(rightX, charTop + panelH/2);
+  this.ui.charHL.setSize(colW+4, panelH+4).setPosition(rightX, charTop + panelH/2);
+
+  const imgMaxW = colW * 0.8;
+  const imgMaxH = panelH * 0.8;
+  if (this.ui.charIsSprite) {
+    // sprite 128x128
+    const s = Math.min(imgMaxW/128, imgMaxH/128);
+    this.ui.charImg.setScale(s).setPosition(rightX, charTop + panelH*0.5);
+  } else {
+    const tex = this.ui.charImg.texture.getSourceImage();
+    const s = Math.min(imgMaxW/tex.width, imgMaxH/tex.height);
+    this.ui.charImg.setScale(s).setPosition(rightX, charTop + panelH*0.5);
+  }
+  const charBottom = charTop + panelH;
+
+  // --- Tombol SKATE di bawah tengah (selalu terlihat) ---
+  const contentBottom = stack ? Math.max(mapBottom, charBottom) : Math.max(mapBottom, charBottom);
+  const btnY = Math.min(H - 70, contentBottom + 36);
+  this.ui.startBtn.setPosition(cx, btnY);
+  this.ui.startLbl.setPosition(cx, btnY);
+}
 
 // ---------------- Game (parallax city + runner) ----------------
 class GameScene extends Phaser.Scene {
