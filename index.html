@@ -33,21 +33,15 @@ class BootScene extends Phaser.Scene{
   constructor(){super('boot')}
   preload(){
     // karakter
-    this.load.spritesheet('skater','assets/skater_girl.png?v=2',{frameWidth:128,frameHeight:128});
-    this.load.image('char_skater_preview','assets/char_skater_preview.png?v=2');
+    this.load.spritesheet('skater','assets/skater_girl.png?v=3',{frameWidth:128,frameHeight:128});
+    this.load.image('char_skater_preview','assets/char_skater_preview.png?v=3');
 
     // splash (opsional)
-    this.load.image('splash_bg','assets/splash_16x9.png?v=2');
+    this.load.image('splash_bg','assets/splash_16x9.png?v=3');
 
     // map city: preview + 6 layer parallax
-    this.load.image('map_city_preview','assets/maps/city/map_city_preview.png?v=2');
-    for(let i=1;i<=6;i++) this.load.image('city'+i,`assets/maps/city/city${i}.png?v=2`);
-
-    // sfx (opsional)
-    // this.load.audio('bgm_city','assets/audio/bgm_city.mp3');
-    // this.load.audio('sfx_jump','assets/audio/jump.wav');
-    // this.load.audio('sfx_collect','assets/audio/collect.wav');
-    // this.load.audio('sfx_hit','assets/audio/hit.wav');
+    this.load.image('map_city_preview','assets/maps/city/map_city_preview.png?v=3');
+    for(let i=1;i<=6;i++) this.load.image('city'+i,`assets/maps/city/city${i}.png?v=3`);
   }
   create(){ this.scene.start('splash') }
 }
@@ -75,7 +69,7 @@ class SplashScene extends Phaser.Scene{
   }
 }
 
-// ======= MENU (2 COLUMNS) =======
+// ======= MENU (2 columns, smaller previews, no "Select ..." headings) =======
 class MenuScene extends Phaser.Scene{
   constructor(){super('menu')}
   create(){
@@ -87,23 +81,20 @@ class MenuScene extends Phaser.Scene{
     this.ui.back=this.add.text(24,18,'← Back',{fontFamily:F,fontSize:18,color:'#9aa4b2'})
       .setInteractive({useHandCursor:true}).on('pointerup',()=>this.scene.start('splash'));
 
-    // Title line
-    this.ui.title=this.add.text(0,0,'Select Map                                Select Character',
-      {fontFamily:F,fontSize:24,color:'#bfc7d5'}).setOrigin(0.5,0);
+    // (hapus "Select Map/Character"); gunakan label spesifik saja
+    this.ui.mapLabel = this.add.text(0,0,'City',{fontFamily:F,fontSize:24,color:'#ffffff'}).setOrigin(0.5,1);
+    this.ui.charLabel= this.add.text(0,0,'Skater Girl',{fontFamily:F,fontSize:24,color:'#ffffff'}).setOrigin(0.5,1);
 
     // Map (left)
-    this.ui.mapTitle=this.add.text(0,0,'City',{fontFamily:F,fontSize:20,color:'#fff'}).setOrigin(0.5,1);
-    this.ui.mapFrame=this.add.rectangle(0,0,640,360,0x12161c).setStrokeStyle(2,0x2c3440);
+    this.ui.mapFrame=this.add.rectangle(0,0,560,315,0x12161c).setStrokeStyle(2,0x2c3440);
     if(this.textures.exists('map_city_preview')){
       this.ui.mapImage=this.add.image(0,0,'map_city_preview').setOrigin(0.5);
     }else{
-      this.ui.mapImage=this.add.graphics(); this.ui.mapImage.fillStyle(0x1a2330,1).fillRoundedRect(-300,-160,600,320,12);
-      this.add.text(0,0,'City (preview)',{fontFamily:F,fontSize:22,color:'#9fb8ff'}).setOrigin(0.5);
+      this.ui.mapImage=this.add.graphics(); this.ui.mapImage.fillStyle(0x1a2330,1).fillRoundedRect(-260,-145,520,290,12);
     }
 
     // Character (right)
-    this.ui.charTitle=this.add.text(0,0,'Skater Girl',{fontFamily:F,fontSize:20,color:'#fff'}).setOrigin(0.5,1);
-    this.ui.charFrame=this.add.rectangle(0,0,380,420,0x12161c).setStrokeStyle(2,0x2c3440);
+    this.ui.charFrame=this.add.rectangle(0,0,420,460,0x12161c).setStrokeStyle(2,0x2c3440);
     if(this.textures.exists('char_skater_preview')){
       this.ui.charImg=this.add.image(0,0,'char_skater_preview').setOrigin(0.5); this.ui.charIsSprite=false;
     }else{
@@ -113,9 +104,9 @@ class MenuScene extends Phaser.Scene{
       }
       this.ui.charImg.play('menu_run');
     }
-    this.ui.charHL=this.add.rectangle(0,0,384,424).setStrokeStyle(4,0x35e1a1);
+    this.ui.charHL=this.add.rectangle(0,0,424,464).setStrokeStyle(4,0x35e1a1);
 
-    // Start
+    // Start (beri jarak nyaman dari panel)
     this.ui.startBtn=this.add.rectangle(0,0,260,64,0x35e1a1).setInteractive({useHandCursor:true});
     this.ui.startLbl=this.add.text(0,0,'SKATE!',{fontFamily:F,fontSize:26,color:'#111',fontStyle:'bold'}).setOrigin(0.5);
     this.ui.startBtn.on('pointerup',()=>this.scene.start('game'));
@@ -130,56 +121,63 @@ class MenuScene extends Phaser.Scene{
     const H=this.scale.gameSize.height||GAME_HEIGHT;
     const cx=W/2;
 
-    const marginX=Math.max(28,W*0.04), gapCol=Math.max(28,W*0.04);
-    const topPad=60, belowTitle=18, titlePad=10, bottomPad=90;
-    let colW=(W - marginX*2 - gapCol)/2; colW=Math.min(colW,720);
-    const stack=W<980; if(stack) colW=Math.min(680,W - marginX*2);
+    // grid & ukuran (lebih kecil dari sebelumnya)
+    const marginX=Math.max(28,W*0.04);
+    const gapCol =Math.max(28,W*0.04);
+    const topPad =60;
+    const labelGap=12;
+    const btnGap =56; // jarak tombol dari panel
 
-    this.ui.title.setPosition(cx,topPad);
+    // kolom lebih ramping supaya preview kecil
+    let colW=(W - marginX*2 - gapCol)/2;
+    colW=Math.min(colW, 580); // batasi
 
-    const tH=this.ui.title.height + belowTitle + Math.max(this.ui.mapTitle.height,this.ui.charTitle.height) + titlePad;
-    const room=H - topPad - tH - bottomPad - 40;
-    let panelH=Phaser.Math.Clamp(Math.round(room),320,560);
+    const stack=W<980;
+    if(stack) colW=Math.min(600, W - marginX*2);
 
-    const leftX=stack?cx:(marginX + colW/2);
+    const leftX =stack?cx:(marginX + colW/2);
     const rightX=stack?cx:(W - marginX - colW/2);
 
-    // MAP
-    let y=topPad + this.ui.title.height + belowTitle;
-    this.ui.mapTitle.setPosition(leftX,y); y+=titlePad;
-    const mapTop=y;
-    this.ui.mapFrame.setSize(colW,panelH).setPosition(leftX,mapTop+panelH/2);
+    // tinggi panel: lebih kecil
+    const panelH=Math.min(Math.round(H*0.42), 420);
+
+    // MAP kiri
+    let y=topPad+12;
+    this.ui.mapLabel.setPosition(leftX, y);
+    y += labelGap;
+    this.ui.mapFrame.setSize(colW, panelH).setPosition(leftX, y + panelH/2);
     if(this.ui.mapImage.type==='Image'){
       const tex=this.ui.mapImage.texture.getSourceImage();
-      const s=Math.min((colW-16)/tex.width,(panelH-16)/tex.height);
-      this.ui.mapImage.setScale(s).setPosition(leftX,mapTop+panelH/2);
+      const s=Math.min((colW-18)/tex.width,(panelH-18)/tex.height);
+      this.ui.mapImage.setScale(s).setPosition(leftX, y + panelH/2);
     }else{
-      this.ui.mapImage.setPosition(leftX,mapTop+panelH/2);
+      this.ui.mapImage.setPosition(leftX, y + panelH/2);
     }
-    const mapBottom=mapTop+panelH;
+    const mapBottom = y + panelH;
 
-    // CHAR
-    let y2 = stack ? (mapBottom+28) : (topPad + this.ui.title.height + belowTitle);
-    this.ui.charTitle.setPosition(rightX,y2); y2+=titlePad;
-    const charTop=y2;
-    this.ui.charFrame.setSize(colW,panelH).setPosition(rightX,charTop+panelH/2);
-    this.ui.charHL.setSize(colW+4,panelH+4).setPosition(rightX,charTop+panelH/2);
-    const maxW=colW*0.8, maxH=panelH*0.8;
+    // CHAR kanan
+    let y2 = stack? (mapBottom+28) : (topPad+12);
+    this.ui.charLabel.setPosition(rightX, y2);
+    y2 += labelGap;
+    this.ui.charFrame.setSize(colW, panelH).setPosition(rightX, y2 + panelH/2);
+    this.ui.charHL.setSize(colW+4, panelH+4).setPosition(rightX, y2 + panelH/2);
+
+    const maxW=colW*0.76, maxH=panelH*0.76;
     if(this.ui.charIsSprite){
-      const s=Math.min(maxW/128,maxH/128);
-      this.ui.charImg.setScale(s).setPosition(rightX,charTop+panelH*0.5);
+      const s=Math.min(maxW/128, maxH/128);
+      this.ui.charImg.setScale(s).setPosition(rightX, y2 + panelH*0.5);
     }else{
       const tex=this.ui.charImg.texture.getSourceImage();
-      const s=Math.min(maxW/tex.width,maxH/tex.height);
-      this.ui.charImg.setScale(s).setPosition(rightX,charTop+panelH*0.5);
+      const s=Math.min(maxW/tex.width, maxH/tex.height);
+      this.ui.charImg.setScale(s).setPosition(rightX, y2 + panelH*0.5);
     }
-    const charBottom=charTop+panelH;
+    const charBottom = y2 + panelH;
 
-    // START
-    const contentBottom=stack?Math.max(mapBottom,charBottom):Math.max(mapBottom,charBottom);
-    const btnY=Math.min(H-70,contentBottom+36);
-    this.ui.startBtn.setPosition(cx,btnY);
-    this.ui.startLbl.setPosition(cx,btnY);
+    // Tombol SKATE (dipisah, tidak nempel)
+    const contentBottom = stack ? Math.max(mapBottom, charBottom) : Math.max(mapBottom, charBottom);
+    const btnY = Math.min(H - 70, contentBottom + btnGap);
+    this.ui.startBtn.setPosition(cx, btnY);
+    this.ui.startLbl.setPosition(cx, btnY);
   }
 }
 
