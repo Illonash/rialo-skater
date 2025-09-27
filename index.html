@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rialo Runner</title>
+  <title>Rialo Skater</title>
   <style>
-    html, body { margin:0; height:100%; background:#0b0b0b; }
+    html, body { margin:0; height:100%; background:#0b0b0b; overflow:hidden; } /* no scrollbars */
     #game-root { width:100vw; height:100vh; }
     * { box-sizing:border-box; }
   </style>
@@ -16,17 +16,17 @@
 
 <script>
 // ===============================================
-// RIALO RUNNER – Single Character (Skater Girl)
+// RIALO SKATER – Single Character (Skater Girl)
 // Scenes: Boot -> Splash -> Menu -> Game -> GameOver
 // Scale: 16:9 FIT (fullscreen adaptif)
 // Controls: Space/Tap = Jump, ArrowDown/SwipeDown = Slide
 // Leaderboard: localStorage (Top 10)
 // ===============================================
 
-const GAME_WIDTH  = 1280;   // jangan diubah; biar Scale.FIT bekerja
+const GAME_WIDTH  = 1280;  // biarkan 16:9, resize via Scale.FIT
 const GAME_HEIGHT = 720;
 
-const STORAGE_KEY = 'rialo_runner_leaderboard_v1';
+const STORAGE_KEY = 'rialo_skater_leaderboard_v1';
 const FRAME_W = 128; // skater_girl per frame
 const FRAME_H = 128;
 
@@ -37,7 +37,7 @@ const Leaderboard = {
   push(name, score) { const r=this.load(); r.push({name,score,ts:Date.now()}); r.sort((a,b)=>b.score-a.score); this.save(r); return r; }
 };
 
-// -- State --
+// -- Global state --
 const G = { sfx:{}, map:'city' };
 
 // ---------------- Boot ----------------
@@ -46,12 +46,14 @@ class BootScene extends Phaser.Scene {
   preload(){
     // Karakter utama (9 frame, 1 baris, 128x128)
     // Pastikan file ini ADA: assets/skater_girl.png (1152x128), idealnya transparan
-    this.load.spritesheet('skater', 'assets/skater_girl.png?v=1', { frameWidth: FRAME_W, frameHeight: FRAME_H });
+    this.load.spritesheet('skater', 'assets/skater_girl.png?v=1', {
+      frameWidth: FRAME_W, frameHeight: FRAME_H
+    });
 
     // Splash (opsional) – taruh gambar 16:9 di assets/splash_16x9.png
     this.load.image('splash_bg', 'assets/splash_16x9.png?v=1');
 
-    // Asset map (opsional, ada fallback kotak warna)
+    // Asset map (opsional; ada fallback kotak warna)
     this.load.image('bg_sky',   'assets/city_sky.png');
     this.load.image('bg_mid',   'assets/city_mid.png');
     this.load.image('bg_front', 'assets/city_front.png');
@@ -82,8 +84,8 @@ class SplashScene extends Phaser.Scene {
       (bg.width && bg.height) ? bg.setScale(s) : bg.setPosition(0,0).setOrigin(0,0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
     } else {
       this.cameras.main.setBackgroundColor('#0e0e0e');
-      this.add.text(cx, cy-60, 'Rialo Runner', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#fff' }).setOrigin(0.5);
-      this.add.text(cx, cy-16, 'Rethink Rebuild Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7' }).setOrigin(0.5);
+      this.add.text(cx, cy-60, 'Rialo Skater', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#fff' }).setOrigin(0.5);
+      this.add.text(cx, cy-16, 'Rethink · Rebuild · Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7' }).setOrigin(0.5);
     }
 
     // Tombol PLAY
@@ -103,25 +105,46 @@ class MenuScene extends Phaser.Scene {
   create(){
     this.cameras.main.setBackgroundColor('#0f1216');
 
-    this.add.text(40, 36, 'Select Character', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+    // Back ke splash (opsional)
+    const back = this.add.text(20, 20, '← Back', { fontFamily:'system-ui', fontSize:18, color:'#9aa4b2' })
+      .setInteractive({ useHandCursor:true }).setScrollFactor(0);
+    back.on('pointerup', ()=> this.scene.start('splash'));
 
-    // Hanya satu karakter: Skater Girl
-    const x=260, y=230;
-    const card = this.add.rectangle(x, y, 320, 360, 0x12161c).setStrokeStyle(2, 0x2c3440);
-    const thumb = this.add.image(x, y-40, 'skater').setScale(1.2);
-    thumb.setCrop(0,0,FRAME_W,FRAME_H); // tampilkan hanya 1 sel
+    this.add.text(40, 56, 'Select Character', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+
+    // Satu karakter: Skater Girl (thumbnail animasi)
+    const x=300, y=260;
+    this.add.rectangle(x, y, 320, 360, 0x12161c).setStrokeStyle(2, 0x2c3440);
+    const thumb = this.add.sprite(x, y-40, 'skater', 1).setScale(1.2);
+    thumb.setCrop(0,0,FRAME_W,FRAME_H);
+
+    // Animasi kecil untuk kartu
+    if (!this.anims.exists('menu_run')) {
+      this.anims.create({
+        key: 'menu_run',
+        frames: this.anims.generateFrameNumbers('skater', { start: 1, end: 4 }),
+        frameRate: 8, repeat: -1
+      });
+    }
+    thumb.play('menu_run');
+
     this.add.text(x, y+140, 'Skater Girl', { fontFamily:'system-ui', fontSize: 20, color:'#fff' }).setOrigin(0.5);
-    this.add.rectangle(x, y, 324, 364).setStrokeStyle(4, 0x35e1a1); // highlight default
+    this.add.rectangle(x, y, 324, 364).setStrokeStyle(4, 0x35e1a1); // highlight
 
     // Map selector (City)
-    this.add.text(40, 420, 'Select Map', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
-    const mapCard = this.add.rectangle(220, 510, 320, 160, 0x12161c).setStrokeStyle(2, 0x2c3440);
-    this.add.text(220, 510, 'City', { fontFamily:'system-ui', fontSize: 22, color:'#fff'}).setOrigin(0.5);
+    this.add.text(40, 440, 'Select Map', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+    this.add.rectangle(240, 530, 320, 160, 0x12161c).setStrokeStyle(2, 0x2c3440);
+    this.add.text(240, 530, 'City', { fontFamily:'system-ui', fontSize: 22, color:'#fff'}).setOrigin(0.5);
 
     // START
     const startBtn = this.add.rectangle(GAME_WIDTH-200, GAME_HEIGHT-80, 220, 60, 0x35e1a1).setInteractive({useHandCursor:true});
     this.add.text(startBtn.x, startBtn.y, 'SKATE!', { fontFamily:'system-ui', fontSize:26, color:'#111', fontStyle:'bold'}).setOrigin(0.5);
     startBtn.on('pointerup', ()=> this.scene.start('game'));
+
+    // Keyboard Enter/Space untuk mulai
+    this.input.keyboard.on('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') this.scene.start('game');
+    });
   }
 }
 
@@ -161,7 +184,7 @@ class GameScene extends Phaser.Scene {
     this.player.setSize(this.player.width*0.45, this.player.height*0.75, true);
     this.player.setOffset(this.player.width*0.27, this.player.height*0.2);
 
-    // Animations (mappingmu)
+    // Animations (mapping)
     // 0 idle; 1-4 run; 5-7 jump; 8 crash
     this.anims.create({ key:'idle',  frames:[{key:'skater',frame:0}], frameRate:1,  repeat:-1 });
     this.anims.create({ key:'run',   frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:12, repeat:-1 });
