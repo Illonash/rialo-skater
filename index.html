@@ -33,15 +33,20 @@ class BootScene extends Phaser.Scene{
   constructor(){super('boot')}
   preload(){
     // karakter
-    this.load.spritesheet('skater','assets/skater_girl.png?v=4',{frameWidth:128,frameHeight:128});
-    this.load.image('char_skater_preview','assets/char_skater_preview.png?v=4');
+    this.load.spritesheet('skater','assets/skater_girl.png?v=5',{frameWidth:128,frameHeight:128});
+    this.load.image('char_skater_preview','assets/char_skater_preview.png?v=5');
 
     // splash (opsional)
-    this.load.image('splash_bg','assets/splash_16x9.png?v=4');
+    this.load.image('splash_bg','assets/splash_16x9.png?v=5');
 
     // map city: preview + 6 layer parallax
-    this.load.image('map_city_preview','assets/maps/city/map_city_preview.png?v=4');
-    for(let i=1;i<=6;i++) this.load.image('city'+i,`assets/maps/city/city${i}.png?v=4`);
+    this.load.image('map_city_preview','assets/maps/city/map_city_preview.png?v=5');
+    for(let i=1;i<=6;i++) this.load.image('city'+i,`assets/maps/city/city${i}.png?v=5`);
+
+    // obstacles (baru)
+    this.load.image('ob_cone','assets/obstacles/cone.png?v=1');
+    this.load.image('ob_bar1','assets/obstacles/barier.png?v=1');
+    this.load.image('ob_bar2','assets/obstacles/barier2.png?v=1');
   }
   create(){ this.scene.start('splash') }
 }
@@ -69,7 +74,7 @@ class SplashScene extends Phaser.Scene{
   }
 }
 
-// ======= MENU (2 columns, compact previews) =======
+// ======= MENU (compact, tanpa “Select …”) =======
 class MenuScene extends Phaser.Scene{
   constructor(){super('menu')}
   create(){
@@ -87,26 +92,14 @@ class MenuScene extends Phaser.Scene{
 
     // Map left
     this.ui.mapFrame=this.add.rectangle(0,0,560,315,0x12161c).setStrokeStyle(2,0x2c3440);
-    if(this.textures.exists('map_city_preview')){
-      this.ui.mapImage=this.add.image(0,0,'map_city_preview').setOrigin(0.5);
-    }else{
-      this.ui.mapImage=this.add.graphics(); this.ui.mapImage.fillStyle(0x1a2330,1).fillRoundedRect(-260,-145,520,290,12);
-    }
+    this.ui.mapImage=this.add.image(0,0,'map_city_preview').setOrigin(0.5);
 
     // Character right
     this.ui.charFrame=this.add.rectangle(0,0,420,460,0x12161c).setStrokeStyle(2,0x2c3440);
-    if(this.textures.exists('char_skater_preview')){
-      this.ui.charImg=this.add.image(0,0,'char_skater_preview').setOrigin(0.5); this.ui.charIsSprite=false;
-    }else{
-      this.ui.charImg=this.add.sprite(0,0,'skater',1).setOrigin(0.5); this.ui.charIsSprite=true;
-      if(!this.anims.exists('menu_run')){
-        this.anims.create({key:'menu_run',frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}),frameRate:8,repeat:-1});
-      }
-      this.ui.charImg.play('menu_run');
-    }
+    this.ui.charImg=this.add.image(0,0,'char_skater_preview').setOrigin(0.5);
     this.ui.charHL=this.add.rectangle(0,0,424,464).setStrokeStyle(4,0x35e1a1);
 
-    // Start (beri jarak)
+    // Start
     this.ui.startBtn=this.add.rectangle(0,0,260,64,0x35e1a1).setInteractive({useHandCursor:true});
     this.ui.startLbl=this.add.text(0,0,'SKATE!',{fontFamily:F,fontSize:26,color:'#111',fontStyle:'bold'}).setOrigin(0.5);
     this.ui.startBtn.on('pointerup',()=>this.scene.start('game'));
@@ -139,13 +132,9 @@ class MenuScene extends Phaser.Scene{
     let y=topPad+12;
     this.ui.mapLabel.setPosition(leftX, y); y+=labelGap;
     this.ui.mapFrame.setSize(colW, panelH).setPosition(leftX, y + panelH/2);
-    if(this.ui.mapImage.type==='Image'){
-      const tex=this.ui.mapImage.texture.getSourceImage();
-      const s=Math.min((colW-18)/tex.width,(panelH-18)/tex.height);
-      this.ui.mapImage.setScale(s).setPosition(leftX, y + panelH/2);
-    }else{
-      this.ui.mapImage.setPosition(leftX, y + panelH/2);
-    }
+    const mapTex=this.ui.mapImage.texture.getSourceImage();
+    const ms=Math.min((colW-18)/mapTex.width,(panelH-18)/mapTex.height);
+    this.ui.mapImage.setScale(ms).setPosition(leftX, y + panelH/2);
     const mapBottom = y + panelH;
 
     // Character
@@ -154,15 +143,9 @@ class MenuScene extends Phaser.Scene{
     this.ui.charFrame.setSize(colW, panelH).setPosition(rightX, y2 + panelH/2);
     this.ui.charHL.setSize(colW+4, panelH+4).setPosition(rightX, y2 + panelH/2);
 
-    const maxW=colW*0.76, maxH=panelH*0.76;
-    if(this.ui.charIsSprite){
-      const s=Math.min(maxW/128, maxH/128);
-      this.ui.charImg.setScale(s).setPosition(rightX, y2 + panelH*0.5);
-    }else{
-      const tex=this.ui.charImg.texture.getSourceImage();
-      const s=Math.min(maxW/tex.width, maxH/tex.height);
-      this.ui.charImg.setScale(s).setPosition(rightX, y2 + panelH*0.5);
-    }
+    const charTex=this.ui.charImg.texture.getSourceImage();
+    const cs=Math.min(colW*0.76/charTex.width, panelH*0.76/charTex.height);
+    this.ui.charImg.setScale(cs).setPosition(rightX, y2 + panelH*0.5);
     const charBottom = y2 + panelH;
 
     // Tombol
@@ -173,13 +156,13 @@ class MenuScene extends Phaser.Scene{
   }
 }
 
-// ======= GAME (parallax + HP 3 + speed ramp) =======
+// ======= GAME (parallax + HP 3 + speed ramp + SPRITE OBSTACLE) =======
 class GameScene extends Phaser.Scene{
   constructor(){super('game')}
   create(){
     // Parallax 6 layer
     this.parallax=[];
-    const baseParallax=[0.15,0.25,0.5,0.9,1.3,1.8];
+    const baseParallax=[0.06,0.1,0.2,0.35,0.55,0.8]; // lebih pelan
     for(let i=1;i<=6;i++){
       const key='city'+i;
       const ts=this.add.tileSprite(0,0,GAME_WIDTH,GAME_HEIGHT,key).setOrigin(0,0);
@@ -200,7 +183,7 @@ class GameScene extends Phaser.Scene{
     this.player.setCollideWorldBounds(true);
     this.anims.create({key:'idle',frames:[{key:'skater',frame:0}],frameRate:1,repeat:-1});
     this.anims.create({key:'run',frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}),frameRate:12,repeat:-1});
-    this.anims.create({key:'jump',frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}),frameRate:10,repeat:0});
+    this.anims.create({key:'jump',frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}),frameRate:12,repeat:0});
     this.anims.create({key:'crash',frames:[{key:'skater',frame:8}],frameRate:1,repeat:0});
     this.player.play('run');
 
@@ -208,7 +191,9 @@ class GameScene extends Phaser.Scene{
     this.score=0;
     this.hp=3;
     this.invuln=false;
-    this.baseSpeed=260; // pixels/sec
+
+    // Kecepatan awal lebih pelan, FPS-indep
+    this.baseSpeed=160; // px/s (LEBIH PELAN)
     this.speed=this.baseSpeed;
 
     this.scoreText=this.add.text(20,20,'Score: 0',{fontFamily:'system-ui',fontSize:24,color:'#fff'}).setScrollFactor(0);
@@ -218,9 +203,9 @@ class GameScene extends Phaser.Scene{
     this.obstacles=this.physics.add.group();
     this.gems=this.physics.add.group();
 
-    // spawner
-    this.time.addEvent({delay:1200, loop:true, callback:()=>this.spawnObstacle()});
-    this.time.addEvent({delay:1000, loop:true, callback:()=>this.spawnGem()});
+    // spawner: rentang acak, mulai 1.6–2.4 detik
+    this.obTimer=this.time.addEvent({delay:2000, loop:true, callback:()=>this.spawnObstacle()});
+    this.gemTimer=this.time.addEvent({delay:1200, loop:true, callback:()=>this.spawnGem()});
 
     // collision
     this.physics.add.collider(this.player,this.obstacles,()=>this.takeHit());
@@ -229,13 +214,18 @@ class GameScene extends Phaser.Scene{
     this.cursors=this.input.keyboard.createCursorKeys();
     this.input.on('pointerdown',()=>this.tryJump());
 
-    // speed ramp
-    this.time.addEvent({delay:20000, loop:true, callback:()=>this.rampUp()}); // tiap 20s tambah speed
+    // speed ramp: tiap 25s +20 px/s (pelan)
+    this.time.addEvent({delay:25000, loop:true, callback:()=>this.rampUp()});
   }
 
   rampUp(){
-    this.speed += 40; // tambah kecepatan lari
-    this.parallax.forEach(l=> l.speed = l.base * (this.speed/this.baseSpeed));
+    this.speed += 20;
+    // sinkronkan parallax
+    const factor=this.speed/this.baseSpeed;
+    this.parallax.forEach(l=> l.speed = l.base * factor);
+    // perbaharui delay obstacle (sedikit lebih sering saat cepat)
+    const d=Phaser.Math.Clamp(2200 - (this.speed-this.baseSpeed)*2, 1400, 2400);
+    this.obTimer.reset({delay:d, loop:true, callback:()=>this.spawnObstacle()});
   }
 
   tryJump(){
@@ -245,44 +235,42 @@ class GameScene extends Phaser.Scene{
   }
 
   update(time,delta){
-    // auto run ke kanan (feel)
+    const dt = delta/1000; // detik
+
+    // auto run
     this.player.setVelocityX(this.speed);
 
-    // parallax bergerak
-    this.parallax.forEach(l=> l.ts.tilePositionX += l.speed);
+    // parallax bergerak delta-aware
+    this.parallax.forEach(l=> l.ts.tilePositionX += l.speed * (dt*60));
 
-    // skor naik seiring waktu + bonus kecil dari speed
-    this.score += (delta/1000) * Math.round(this.speed/26);
+    // skor naik seiring waktu
+    this.score += dt * Math.round(this.speed/8);
     this.scoreText.setText('Score: '+Math.floor(this.score));
 
     // kontrol
     if(Phaser.Input.Keyboard.JustDown(this.cursors.space) || Phaser.Input.Keyboard.JustDown(this.cursors.up))
       this.tryJump();
 
+    // bersihkan entity yang keluar layar
+    this.obstacles.children.iterate(o=>{ if(o && o.x < -120) o.destroy(); });
+    this.gems.children.iterate(g=>{ if(g && g.x < -80) g.destroy(); });
+
     // ambil gems
     this.physics.overlap(this.player,this.gems,(p,g)=>{ g.destroy(); this.score+=15; });
   }
 
+  // --- obstacle pakai sprite kamu, origin di bawah agar nempel tanah ---
   spawnObstacle(){
-    // Cone / box sederhana
-    const types=[
-      {w:48,h:60,color:0xD94848, yOffset:40},   // box
-      {w:80,h:28,color:0xE3C833, yOffset:20},   // cone panjang (bar)
-    ];
-    const t=Phaser.Utils.Array.GetRandom(types);
-    const y=this.groundY - t.yOffset;
-    const x=GAME_WIDTH + 100;
+    const keys=['ob_cone','ob_bar1','ob_bar2'];
+    const key=Phaser.Utils.Array.GetRandom(keys);
 
-    const obs=this.add.rectangle(x,y,t.w,t.h,t.color).setOrigin(0.5);
-    this.physics.add.existing(obs);
-    obs.body.setVelocityX(-this.speed).setAllowGravity(false);
-    obs.body.setImmovable(true);
-    this.obstacles.add(obs);
+    const s=this.add.image(GAME_WIDTH+90, this.groundY, key)
+      .setOrigin(0.5,1)       // nempel ke ground
+      .setScale(1);           // 64x64 pas
 
-    // bersihkan saat keluar layar
-    obs.update = ()=>{ if(obs.x < -100) obs.destroy(); };
-    this.events.on('update',obs.update,obs);
-    obs.once('destroy',()=> this.events.off('update',obs.update,obs));
+    this.physics.add.existing(s);
+    s.body.setAllowGravity(false).setImmovable(true).setVelocityX(-this.speed);
+    this.obstacles.add(s);
   }
 
   spawnGem(){
@@ -291,9 +279,6 @@ class GameScene extends Phaser.Scene{
     const c=this.add.circle(x,y,10,0x35e1a1); this.physics.add.existing(c);
     c.body.setVelocityX(-this.speed).setAllowGravity(false);
     this.gems.add(c);
-    c.update = ()=>{ if(c.x < -50) c.destroy(); };
-    this.events.on('update',c.update,c);
-    c.once('destroy',()=> this.events.off('update',c.update,c));
   }
 
   takeHit(){
