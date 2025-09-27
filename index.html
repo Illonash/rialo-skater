@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rialo Skater</title>
   <style>
-    html, body { margin:0; height:100%; background:#0b0b0b; overflow:hidden; } /* no scrollbars */
+    html, body { margin:0; height:100%; background:#0b0b0b; overflow:hidden; }
     #game-root { width:100vw; height:100vh; }
-    * { box-sizing:border-box; }
+    * { box-sizing: border-box; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
 </head>
@@ -16,51 +16,49 @@
 
 <script>
 // ===============================================
-// RIALO SKATER – Single Character (Skater Girl)
+// RIALO SKATER (Single Character + City Parallax)
 // Scenes: Boot -> Splash -> Menu -> Game -> GameOver
 // Scale: 16:9 FIT (fullscreen adaptif)
 // Controls: Space/Tap = Jump, ArrowDown/SwipeDown = Slide
 // Leaderboard: localStorage (Top 10)
 // ===============================================
 
-const GAME_WIDTH  = 1280;  // biarkan 16:9, resize via Scale.FIT
+const GAME_WIDTH  = 1280;
 const GAME_HEIGHT = 720;
 
 const STORAGE_KEY = 'rialo_skater_leaderboard_v1';
 const FRAME_W = 128; // skater_girl per frame
 const FRAME_H = 128;
 
-// -- Leaderboard (local) --
+const G = { sfx:{}, map:'city' };
+
+// ---------- Leaderboard (local) ----------
 const Leaderboard = {
   load() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } },
   save(rows) { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows.slice(0,10))); },
   push(name, score) { const r=this.load(); r.push({name,score,ts:Date.now()}); r.sort((a,b)=>b.score-a.score); this.save(r); return r; }
 };
 
-// -- Global state --
-const G = { sfx:{}, map:'city' };
-
 // ---------------- Boot ----------------
 class BootScene extends Phaser.Scene {
   constructor(){ super('boot'); }
   preload(){
-    // Karakter utama (9 frame, 1 baris, 128x128)
-    // Pastikan file ini ADA: assets/skater_girl.png (1152x128), idealnya transparan
+    // Karakter (9 frame, 1 baris, 128x128)
     this.load.spritesheet('skater', 'assets/skater_girl.png?v=1', {
       frameWidth: FRAME_W, frameHeight: FRAME_H
     });
 
-    // Splash (opsional) – taruh gambar 16:9 di assets/splash_16x9.png
+    // Character preview (opsional)
+    this.load.image('char_preview', 'assets/char_skater_preview.png?v=1');
+
+    // Splash (opsional, 16:9)
     this.load.image('splash_bg', 'assets/splash_16x9.png?v=1');
 
-    // Asset map (opsional; ada fallback kotak warna)
-    this.load.image('bg_sky',   'assets/city_sky.png');
-    this.load.image('bg_mid',   'assets/city_mid.png');
-    this.load.image('bg_front', 'assets/city_front.png');
-    this.load.image('ground',   'assets/ground_tile.png');
-    this.load.image('ob_low',   'assets/obstacle_low.png');
-    this.load.image('ob_high',  'assets/obstacle_high.png');
-    this.load.image('gem',      'assets/rialo_gem.png');
+    // Map City: preview + 6 layer parallax
+    this.load.image('map_city_preview', 'assets/maps/city/map_city_preview.png?v=1');
+    for (let i=1; i<=6; i++){
+      this.load.image('city'+i, `assets/maps/city/city${i}.png?v=1`);
+    }
 
     // Audio (opsional)
     this.load.audio('bgm_city',   'assets/audio/bgm_city.mp3');
@@ -77,122 +75,138 @@ class SplashScene extends Phaser.Scene {
   create(){
     const cx=GAME_WIDTH/2, cy=GAME_HEIGHT/2;
 
-    // Tampilkan splash (COVER)
     if (this.textures.exists('splash_bg')) {
       const bg = this.add.image(cx, cy, 'splash_bg').setOrigin(0.5);
       const s = Math.max(GAME_WIDTH/bg.width, GAME_HEIGHT/bg.height);
-      (bg.width && bg.height) ? bg.setScale(s) : bg.setPosition(0,0).setOrigin(0,0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
+      (bg.width && bg.height) ? bg.setScale(s) :
+        bg.setPosition(0,0).setOrigin(0,0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT);
     } else {
       this.cameras.main.setBackgroundColor('#0e0e0e');
       this.add.text(cx, cy-60, 'Rialo Skater', { fontFamily:'system-ui', fontSize: 48, fontStyle:'bold', color:'#fff' }).setOrigin(0.5);
       this.add.text(cx, cy-16, 'Rethink · Rebuild · Rialo', { fontFamily:'system-ui', fontSize: 20, color:'#a7a7a7' }).setOrigin(0.5);
     }
 
-    // Tombol PLAY
     const btn=this.add.rectangle(cx, cy+200, 240, 64, 0xFFC62E).setInteractive({useHandCursor:true});
     this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui', fontSize:28, color:'#111', fontStyle:'bold' }).setOrigin(0.5);
     btn.on('pointerup', ()=> this.scene.start('menu'));
 
-    // Fullscreen ⛶
     const fs=this.add.text(GAME_WIDTH-16,12,'⛶',{fontFamily:'system-ui',fontSize:22,color:'#fff'}).setOrigin(1,0).setInteractive({useHandCursor:true});
     fs.on('pointerup', ()=> this.scale.isFullscreen ? this.scale.stopFullscreen() : this.scale.startFullscreen());
   }
 }
 
-// ---------------- Menu ----------------
+// ---------------- Menu (center + previews) ----------------
 class MenuScene extends Phaser.Scene {
   constructor(){ super('menu'); }
   create(){
     this.cameras.main.setBackgroundColor('#0f1216');
+    const cx = GAME_WIDTH/2;
 
-    // Back ke splash (opsional)
-    const back = this.add.text(20, 20, '← Back', { fontFamily:'system-ui', fontSize:18, color:'#9aa4b2' })
+    const back = this.add.text(24, 18, '← Back', { fontFamily:'system-ui', fontSize:18, color:'#9aa4b2' })
       .setInteractive({ useHandCursor:true }).setScrollFactor(0);
     back.on('pointerup', ()=> this.scene.start('splash'));
 
-    this.add.text(40, 56, 'Select Character', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
+    let y = 90;
+    this.add.text(cx, y, 'Select Character', {
+      fontFamily:'system-ui', fontSize: 34, color:'#ffffff', fontStyle:'bold'
+    }).setOrigin(0.5);
 
-    // Satu karakter: Skater Girl (thumbnail animasi)
-    const x=300, y=260;
-    this.add.rectangle(x, y, 320, 360, 0x12161c).setStrokeStyle(2, 0x2c3440);
-    const thumb = this.add.sprite(x, y-40, 'skater', 1).setScale(1.2);
-    thumb.setCrop(0,0,FRAME_W,FRAME_H);
+    // Character card
+    y += 190;
+    const cardW = 380, cardH = 420;
+    this.add.rectangle(cx, y, cardW, cardH, 0x12161c).setStrokeStyle(2, 0x2c3440);
 
-    // Animasi kecil untuk kartu
-    if (!this.anims.exists('menu_run')) {
-      this.anims.create({
-        key: 'menu_run',
-        frames: this.anims.generateFrameNumbers('skater', { start: 1, end: 4 }),
-        frameRate: 8, repeat: -1
-      });
+    if (this.textures.exists('char_preview')) {
+      const pv = this.add.image(cx, y-40, 'char_preview').setOrigin(0.5);
+      const scale = Math.min(220/pv.width, 220/pv.height);
+      pv.setScale(scale*1.2);
+    } else {
+      const thumb = this.add.sprite(cx, y-40, 'skater', 1).setScale(1.6);
+      thumb.setCrop(0,0,FRAME_W,FRAME_H);
+      if (!this.anims.exists('menu_run')) {
+        this.anims.create({
+          key: 'menu_run',
+          frames: this.anims.generateFrameNumbers('skater', { start: 1, end: 4 }),
+          frameRate: 8, repeat: -1
+        });
+      }
+      thumb.play('menu_run');
     }
-    thumb.play('menu_run');
 
-    this.add.text(x, y+140, 'Skater Girl', { fontFamily:'system-ui', fontSize: 20, color:'#fff' }).setOrigin(0.5);
-    this.add.rectangle(x, y, 324, 364).setStrokeStyle(4, 0x35e1a1); // highlight
+    this.add.text(cx, y+cardH/2-36, 'Skater Girl', {
+      fontFamily:'system-ui', fontSize: 22, color:'#ffffff'
+    }).setOrigin(0.5);
+    this.add.rectangle(cx, y, cardW+4, cardH+4).setStrokeStyle(4, 0x35e1a1);
 
-    // Map selector (City)
-    this.add.text(40, 440, 'Select Map', { fontFamily:'system-ui', fontSize: 28, color:'#fff', fontStyle:'bold' });
-    this.add.rectangle(240, 530, 320, 160, 0x12161c).setStrokeStyle(2, 0x2c3440);
-    this.add.text(240, 530, 'City', { fontFamily:'system-ui', fontSize: 22, color:'#fff'}).setOrigin(0.5);
+    // Map section
+    y += cardH/2 + 70;
+    this.add.text(cx, y, 'Select Map', {
+      fontFamily:'system-ui', fontSize: 30, color:'#ffffff', fontStyle:'bold'
+    }).setOrigin(0.5);
 
-    // START
-    const startBtn = this.add.rectangle(GAME_WIDTH-200, GAME_HEIGHT-80, 220, 60, 0x35e1a1).setInteractive({useHandCursor:true});
+    y += 190;
+    const mapW = 640, mapH = 360;
+    this.add.rectangle(cx, y, mapW, mapH, 0x12161c).setStrokeStyle(2, 0x2c3440);
+    if (this.textures.exists('map_city_preview')) {
+      const pv = this.add.image(cx, y, 'map_city_preview').setOrigin(0.5);
+      const s = Math.min(mapW/pv.width, mapH/pv.height);
+      pv.setScale(s);
+    } else {
+      const ph = this.add.graphics();
+      ph.fillStyle(0x1a2330, 1).fillRoundedRect(cx - mapW/2 + 8, y - mapH/2 + 8, mapW-16, mapH-16, 12);
+      this.add.text(cx, y, 'City (preview)', { fontFamily:'system-ui', fontSize: 22, color:'#9fb8ff' }).setOrigin(0.5);
+    }
+
+    const btnY = Math.min(GAME_HEIGHT - 70, y + mapH/2 + 50);
+    const startBtn = this.add.rectangle(cx, btnY, 240, 64, 0x35e1a1).setInteractive({useHandCursor:true});
     this.add.text(startBtn.x, startBtn.y, 'SKATE!', { fontFamily:'system-ui', fontSize:26, color:'#111', fontStyle:'bold'}).setOrigin(0.5);
     startBtn.on('pointerup', ()=> this.scene.start('game'));
 
-    // Keyboard Enter/Space untuk mulai
     this.input.keyboard.on('keydown', (e) => {
       if (e.code === 'Enter' || e.code === 'Space') this.scene.start('game');
     });
   }
 }
 
-// ---------------- Game ----------------
+// ---------------- Game (parallax city + runner) ----------------
 class GameScene extends Phaser.Scene {
   constructor(){ super('game'); }
   create(){
+    // Parallax with 6 layers (tileSprite)
+    // urut dari paling belakang ke depan
+    const speeds = [0.15, 0.25, 0.5, 0.9, 1.3, 1.8];
+    this.parallax = [];
+    for (let i=1;i<=6;i++){
+      const key = 'city'+i;
+      const ts = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, key).setOrigin(0,0);
+      ts.setScrollFactor(0);
+      // if source image has different height, center it vertically:
+      const tex = this.textures.get(key).getSourceImage();
+      if (tex && tex.height && tex.height !== GAME_HEIGHT) {
+        // stretch cover while preserving aspect horizontally
+        const scale = Math.max(GAME_WIDTH/tex.width, GAME_HEIGHT/tex.height);
+        ts.setTileScale(scale, scale);
+      }
+      this.parallax.push({ ts, speed: speeds[i-1] });
+    }
+
     this.physics.world.setBounds(0, 0, Number.MAX_SAFE_INTEGER/4, GAME_HEIGHT);
-
-    // Parallax (fallback kalau tak ada gambar)
-    this.bgLayers=[];
-    if (this.textures.exists('bg_sky'))   this.bgLayers.push({img:this.add.image(0,0,'bg_sky').setOrigin(0),   speed:0.2});
-    if (this.textures.exists('bg_mid'))   this.bgLayers.push({img:this.add.image(0,0,'bg_mid').setOrigin(0),   speed:0.6});
-    if (this.textures.exists('bg_front')) this.bgLayers.push({img:this.add.image(0,0,'bg_front').setOrigin(0), speed:1.0});
-    if (this.bgLayers.length===0){
-      this.add.rectangle(0,0,GAME_WIDTH,GAME_HEIGHT,0x0b1320).setOrigin(0);
-      this.add.rectangle(0,GAME_HEIGHT-180,GAME_WIDTH,180,0x0e1b2e).setOrigin(0);
-    }
-
-    // Ground (infinite)
     this.groundY = GAME_HEIGHT - 90;
-    this.groundTiles = this.add.group();
-    const tileW=128;
-    for (let x=0; x<=GAME_WIDTH+tileW; x+=tileW) addGround.call(this, x);
-    function addGround(x){
-      let g;
-      if (this.textures.exists('ground')) g=this.add.image(x,this.groundY,'ground').setOrigin(0.5);
-      else g=this.add.rectangle(x,this.groundY,tileW,32,0x263445).setOrigin(0.5);
-      this.groundTiles.add(g);
-    }
 
-    // Player (Skater)
+    // Player
     this.player = this.physics.add.sprite(220, this.groundY-60, 'skater', 0).setScale(1.2);
     this.player.setCollideWorldBounds(true);
-    this.isSliding=false;
-    // Hitbox adil
     this.player.setSize(this.player.width*0.45, this.player.height*0.75, true);
     this.player.setOffset(this.player.width*0.27, this.player.height*0.2);
 
-    // Animations (mapping)
-    // 0 idle; 1-4 run; 5-7 jump; 8 crash
+    // Animations (0 idle; 1-4 run; 5-7 jump; 8 crash)
     this.anims.create({ key:'idle',  frames:[{key:'skater',frame:0}], frameRate:1,  repeat:-1 });
     this.anims.create({ key:'run',   frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:12, repeat:-1 });
     this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:10, repeat:0 });
     this.anims.create({ key:'crash', frames:[{key:'skater',frame:8}], frameRate:1, repeat:0 });
     this.player.play('run');
 
-    // Input keyboard + mobile
+    // Input
     this.cursors = this.input.keyboard.createCursorKeys();
     let touchStartY=null;
     this.input.on('pointerdown', p=> touchStartY=p.y);
@@ -201,36 +215,13 @@ class GameScene extends Phaser.Scene {
       const dy=p.y-touchStartY;
       if (Math.abs(dy)<30){
         if (this.player.body.onFloor()){
-          this.player.setVelocityY(-520);
-          this.player.play('jump',true);
-          G.sfx.jump?.play?.(); this.isSliding=false;
+          this.jump();
         }
       } else if (dy>30){
-        if (this.player.body.onFloor()){ this.player.play('slide',true); this.isSliding=true; }
+        if (this.player.body.onFloor()){ this.isSliding=true; }
       }
       touchStartY=null;
     });
-
-    // Mute
-    const muteBtn=this.add.text(GAME_WIDTH-20,20,this.sound.mute?'🔇':'🔊',{fontSize:24,color:'#fff'})
-      .setOrigin(1,0).setScrollFactor(0).setInteractive({useHandCursor:true});
-    muteBtn.on('pointerup',()=>{ this.sound.mute=!this.sound.mute; muteBtn.setText(this.sound.mute?'🔇':'🔊'); });
-
-    // Groups & collisions
-    this.obstacles = this.physics.add.group();
-    this.gems = this.physics.add.group();
-    this.physics.add.collider(this.player, this.obstacles, this.onHit, null, this);
-
-    // Score
-    this.score=0;
-    this.scoreText=this.add.text(20,20,'Score: 0',{fontFamily:'system-ui',fontSize:24,color:'#fff'}).setScrollFactor(0);
-
-    // Camera follow
-    this.cameras.main.startFollow(this.player,true,1,1,-400,0);
-
-    // Spawners
-    this.time.addEvent({ delay:1200, loop:true, callback:()=> this.spawnObstacle(this.groundY) });
-    this.time.addEvent({ delay:900,  loop:true, callback:()=> this.spawnGem(this.groundY) });
 
     // Audio
     G.sfx.jump    = this.sound.add('sfx_jump',   {volume:.6});
@@ -239,30 +230,45 @@ class GameScene extends Phaser.Scene {
     this.bgm = this.sound.add('bgm_city',{loop:true,volume:.35});
     if (this.bgm && this.bgm.key!=='__MISSING') this.bgm.play();
 
-    // Kembalikan ke run setelah jump selesai & mendarat
+    // Score
+    this.score=0;
+    this.scoreText=this.add.text(20,20,'Score: 0',{fontFamily:'system-ui',fontSize:24,color:'#fff'}).setScrollFactor(0);
+
+    // Spawners (pakai physics group sederhana)
+    this.obstacles = this.physics.add.group();
+    this.gems = this.physics.add.group();
+    this.physics.add.collider(this.player, this.obstacles, this.onHit, null, this);
+    this.time.addEvent({ delay:1200, loop:true, callback:()=> this.spawnObstacle(this.groundY) });
+    this.time.addEvent({ delay:900,  loop:true, callback:()=> this.spawnGem(this.groundY) });
+
+    // After jump anim finish
     this.player.on('animationcomplete', (anim)=>{
       if (anim.key==='jump' && this.player.body.onFloor()) this.player.play('run', true);
     });
+
+    this.baseSpeed = 260; // player forward velocity
+  }
+
+  jump(){
+    this.player.setVelocityY(-520);
+    this.player.play('jump', true);
+    G.sfx.jump?.play?.();
+    this.isSliding=false;
   }
 
   update(){
-    // Gerak maju
-    this.player.setVelocityX(260);
+    // Player forward push (untuk sensasi maju)
+    this.player.setVelocityX(this.baseSpeed);
 
-    // Parallax
-    this.bgLayers?.forEach(l=>{ l.img.x -= l.speed; if (l.img.x <= -l.img.width) l.img.x = 0; });
-
-    // Ground loop
-    this.groundTiles.getChildren().forEach(t=>{ t.x -= 4; if (t.x < -64) t.x += (Math.ceil(GAME_WIDTH/128)+1)*128; });
+    // Parallax scroll
+    this.parallax.forEach(l => l.ts.tilePositionX += l.speed);
 
     // Keyboard jump/slide
     if (Phaser.Input.Keyboard.JustDown(this.cursors.space) && this.player.body.onFloor()){
-      this.player.setVelocityY(-520);
-      this.player.play('jump', true);
-      G.sfx.jump?.play?.(); this.isSliding=false;
+      this.jump();
     }
     if (this.cursors.down.isDown && this.player.body.onFloor()){
-      if (!this.isSliding){ this.player.play('slide', true); this.isSliding=true; }
+      this.isSliding = true; // (placeholder; anim slide belum dibuat di spritesheet)
     } else if (this.player.body.onFloor() && !this.player.anims.isPlaying){
       this.player.play('run', true); this.isSliding=false;
     }
@@ -276,28 +282,27 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnObstacle(groundY){
-    const type = Math.random()<0.5 ? 'ob_low' : 'ob_high';
-    const y = type==='ob_low' ? groundY-40 : groundY-90;
-    let obj;
-    if (this.textures.exists(type)){
-      obj = this.obstacles.create(this.cameras.main.worldView.right+80, y, type);
-      obj.setVelocityX(-260).setImmovable(true); obj.body.allowGravity=false;
-    } else {
-      const color = type==='ob_low'?0xD94848:0xE3C833;
-      obj = this.add.rectangle(this.cameras.main.worldView.right+80, y, type==='ob_low'?50:140, type==='ob_low'?60:30, color).setOrigin(0.5);
-      this.physics.add.existing(obj); obj.body.setVelocityX(-260); obj.body.setAllowGravity(false); this.obstacles.add(obj);
-    }
+    const high = Math.random()<0.5 ? false : true;
+    const y = high ? (groundY-90) : (groundY-40);
+    const w = high ? 140 : 50;
+    const h = high ? 30  : 60;
+    const color = high? 0xE3C833 : 0xD94848;
+    const x = GAME_WIDTH + 80;
+    const rect = this.add.rectangle(x, y, w, h, color).setOrigin(0.5);
+    this.physics.add.existing(rect);
+    rect.body.setVelocityX(-this.baseSpeed);
+    rect.body.setAllowGravity(false);
+    this.obstacles.add(rect);
   }
 
   spawnGem(groundY){
     const y = groundY - 120 - Math.random()*120;
-    if (this.textures.exists('gem')){
-      const gem=this.gems.create(this.cameras.main.worldView.right+80, y, 'gem');
-      gem.setVelocityX(-260); gem.body.allowGravity=false;
-    } else {
-      const circ=this.add.circle(this.cameras.main.worldView.right+80, y, 12, 0x35e1a1);
-      this.physics.add.existing(circ); circ.body.setVelocityX(-260); circ.body.setAllowGravity(false); this.gems.add(circ);
-    }
+    const x = GAME_WIDTH + 80;
+    const circ=this.add.circle(x, y, 12, 0x35e1a1);
+    this.physics.add.existing(circ);
+    circ.body.setVelocityX(-this.baseSpeed);
+    circ.body.setAllowGravity(false);
+    this.gems.add(circ);
   }
 
   onHit(){
