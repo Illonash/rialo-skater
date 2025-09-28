@@ -124,9 +124,13 @@ class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
   preload() {
     // City parallax
-    ASSETS.city.forEach((p, i) => this.load.image(`city${i+1}`, p));
-    this.load.image('cityFar',  'assets/maps/city3.png'); // lapisan jauh
-    this.load.image('cityNear', 'assets/maps/city6.png'); // lapisan dekat
+    this.layers = [
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city1').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city2').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city3').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city4').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city5').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city6').setOrigin(0,0),
 
     // Obstacles
     this.load.image('obs_barrier', ASSETS.obstacles[0]);
