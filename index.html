@@ -5,28 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Rialo Skater</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #0b0b0b;
-      overflow: hidden;
-    }
-    #game-root {
-      width: 100vw;
-      height: 100vh;
-    }
-    * {
-      box-sizing: border-box;
-    }
+    html,body{margin:0;height:100%;background:#0b0b0b;overflow:hidden}
+    #game-root{width:100vw;height:100vh}
+    *{box-sizing:border-box}
   </style>
 </head>
 <body>
   <div id="game-root"></div>
 
-  <!-- Load Phaser dulu -->
+  <!-- 1) Phaser -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
-
-  <!-- Load game code -->
+  <!-- 2) Game code (file terpisah) -->
   <script src="game.js"></script>
 </body>
 </html>
