@@ -25,8 +25,8 @@ class Boot extends Phaser.Scene {
     }
 
     // Obstacles (perhatikan ejaan barier*)
-    this.load.image('ob_barier1', 'assets/obstacles/barier.png');
-    this.load.image('ob_barier2', 'assets/obstacles/barier2.png');
+    this.load.image('ob_barrier1', 'assets/obstacles/barier.png');
+    this.load.image('ob_barrier2', 'assets/obstacles/barier2.png');
     this.load.image('ob_cone',     'assets/obstacles/cone.png');
   }
   create(){ this.scene.start('splash'); }
@@ -217,7 +217,7 @@ class Game extends Phaser.Scene{
   }
 
   spawnObstacle(){
-    const keys = ['ob_barier1','ob_barier2','ob_cone'].filter(k => this.textures.exists(k));
+    const keys = ['ob_barrier1','ob_barrier2','ob_cone'].filter(k => this.textures.exists(k));
     const key  = keys.length ? Phaser.Utils.Array.GetRandom(keys) : null;
 
     const x = WIDTH + 120;
