@@ -1,310 +1,383 @@
-// game.js — Rialo Skater (title fix, fair jump, slower parallax, BGM, Share)
+/* =========================================================
+   RIALO SKATER — Three Scenes (Splash -> Preview -> Game)
+   ========================================================= */
 
-(() => {
-  const W = 1280, H = 720;
+const GAME_W = 1280;
+const GAME_H = 720;
 
-  // ===== TUNING =====
-  const GRAVITY_Y = 1650;
-  const JUMP_VELOCITY = -680;     // lompat sedikit lebih tinggi & enak
-  const INVINCIBLE_MS = 900;
+// Kecepatan dasar (bisa di-tweak)
+const BASE_SPEED = 180;               // kecepatan lari/gerak tanah
+const OBST_MIN_DELAY = 1600;          // jeda minimal spawn obstacle (ms)
+const OBST_MAX_DELAY = 2400;          // jeda maksimal spawn obstacle (ms)
+const JUMP_VELOCITY = -470;           // kekuatan lompat
+const GRAVITY_Y = 1400;               // gravitasi pemain
+const MAX_LIVES = 3;
 
-  const SPEED_START = 160;        // lebih santai
-  const SPEED_MAX   = 320;
-  const SPEED_UP_EVERY_MS = 9000;
-  const SPEED_INC   = 16;
+// Aset & path (sesuaikan dengan repo kamu saat ini)
+const ASSETS = {
+  splash: 'assets/splash_16x9.png',
+  mapPreview: 'assets/maps/city/map_city_preview.png',
+  charPreview: 'assets/char_skater_preview.png',
+  skater: 'assets/skater_girl.png',                        // spritesheet 1152x128 (9 frame @ 128x128)
+  // Parallax city
+  city: [
+    'assets/maps/city/city1.png',
+    'assets/maps/city/city2.png',
+    'assets/maps/city/city3.png',
+    'assets/maps/city/city4.png',
+    'assets/maps/city/city5.png',
+    'assets/maps/city/city6.png',
+  ],
+  // Obstacles
+  obstacles: [
+    'assets/obstacles/barrier.png',
+    'assets/obstacles/barrier2.png',
+    'assets/obstacles/cone.png',
+  ],
+  // Musik (opsional — kalau file tidak ada, game tetap jalan)
+  bgm: 'assets/audio/bgm.mp3',
+};
 
-  // parallax super pelan
-  const LAYER_SPEEDS   = [0.03, 0.05, 0.08, 0.12, 0.18, 0.26];
-  const PARALLAX_MULT  = 0.07;
+// ---------- Splash Scene ----------
+class SplashScene extends Phaser.Scene {
+  constructor() { super('SplashScene'); }
+  preload() {
+    this.load.image('splashBg', ASSETS.splash);
+    this.load.image('mapPreview', ASSETS.mapPreview);
+    this.load.image('charPreview', ASSETS.charPreview);
+  }
+  create() {
+    // Background splash
+    const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
+    // Scale cover
+    const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
+    bg.setScale(s);
 
-  // obstacle lebih longgar
-  const SPAWN_MIN_MS = 1600;
-  const SPAWN_MAX_MS = 2600;
-  const FIRST_SPAWN_DELAY = 1400;
-  const MIN_GAP_PX = 600;         // jarak piksel minimal antar obstacle
+    // Title
+    this.add.text(GAME_W/2, 110, 'Rialo Skater', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '64px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000',
+      strokeThickness: 4
+    }).setOrigin(0.5);
 
-  // ===== TITLE =====
-  class Title extends Phaser.Scene {
-    constructor(){ super('title'); }
-    preload(){
-      // visual
-      this.load.image('splash', 'assets/splash_16x9.png');
-      this.load.image('map_preview',  'assets/maps/city/map_city_preview.png');
-      this.load.image('char_preview', 'assets/char_skater_preview.png');
+    // Tombol PLAY
+    const play = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 70, 0xF9C315)
+      .setStrokeStyle(6, 0x1f1f1f).setInteractive({ cursor: 'pointer' });
+    this.add.text(play.x, play.y, 'PLAY', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '36px', color: '#1b1b1b', fontStyle: '900'
+    }).setOrigin(0.5);
 
-      // audio (opsional)
-      this.load.audio('bgm',   'assets/audio/bgm.mp3');
-      this.load.audio('click', 'assets/audio/click.mp3');
+    play.on('pointerup', () => this.scene.start('PreviewScene'));
 
-      // in-game
-      for (let i=1;i<=6;i++) this.load.image('city'+i, `assets/maps/city/city${i}.png`);
-      this.load.spritesheet('skater', 'assets/skater_girl.png', { frameWidth:128, frameHeight:128 });
-      this.load.image('ob_barrier',  'assets/obstacles/barrier.png');
-      this.load.image('ob_barrier2', 'assets/obstacles/barrier2.png');
-      this.load.image('ob_cone',     'assets/obstacles/cone.png');
+    // Footer "Powered by Rialo"
+    this.add.text(GAME_W/2, GAME_H - 28, 'Powered by Rialo', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '18px',
+      color: '#cfd8dc'
+    }).setOrigin(0.5);
+  }
+}
+
+// ---------- Preview (Map & Character) Scene ----------
+class PreviewScene extends Phaser.Scene {
+  constructor() { super('PreviewScene'); }
+  create() {
+    // Backdrop gelap halus
+    this.cameras.main.setBackgroundColor('#0f1316');
+
+    // Judul kecil
+    this.add.text(GAME_W/2, 70, 'Choose Map & Character', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '36px', color: '#b2ebf2'
+    }).setOrigin(0.5);
+
+    // Kartu Map (kiri)
+    const mapPanel = this.add.rectangle(380, 340, 520, 320, 0x121820, 0.96)
+      .setStrokeStyle(4, 0x2dd4bf, 1);
+    const mapImg = this.add.image(mapPanel.x, mapPanel.y, 'mapPreview').setScale(0.65);
+    this.add.text(mapPanel.x, mapPanel.y - mapPanel.height/2 - 28, 'Map', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '28px', color: '#80deea'
+    }).setOrigin(0.5);
+
+    // Kartu Character (kanan)
+    const charPanel = this.add.rectangle(900, 340, 520, 320, 0x121820, 0.96)
+      .setStrokeStyle(4, 0x2dd4bf, 1);
+    const charImg = this.add.image(charPanel.x, charPanel.y, 'charPreview').setScale(0.9);
+    this.add.text(charPanel.x, charPanel.y - charPanel.height/2 - 28, 'Character', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '28px', color: '#80deea'
+    }).setOrigin(0.5);
+
+    // Tombol SKATE
+    const btn = this.add.rectangle(GAME_W/2, GAME_H - 90, 260, 70, 0x22e3a3)
+      .setStrokeStyle(6, 0x0a0f12).setInteractive({ cursor: 'pointer' });
+    this.add.text(btn.x, btn.y, 'SKATE!', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '36px', fontStyle: '900', color: '#0a0f12'
+    }).setOrigin(0.5);
+
+    btn.on('pointerup', () => {
+      this.scene.start('GameScene', { map: 'city', char: 'skaterGirl' });
+    });
+
+    // Back kecil (opsional)
+    const back = this.add.text(24, 24, '← Back', { fontFamily: 'system-ui, sans-serif', fontSize: '20px', color: '#90caf9' })
+      .setInteractive({ cursor: 'pointer' });
+    back.on('pointerup', () => this.scene.start('SplashScene'));
+  }
+}
+
+// ---------- Game Scene ----------
+class GameScene extends Phaser.Scene {
+  constructor() { super('GameScene'); }
+  preload() {
+    // City parallax
+    ASSETS.city.forEach((p, i) => this.load.image(`city${i+1}`, p));
+    // Obstacles
+    this.load.image('obs_barrier', ASSETS.obstacles[0]);
+    this.load.image('obs_barrier2', ASSETS.obstacles[1]);
+    this.load.image('obs_cone', ASSETS.obstacles[2]);
+    // Skater spritesheet (9 frame @ 128x128)
+    this.load.spritesheet('skater', ASSETS.skater, { frameWidth: 128, frameHeight: 128, endFrame: 8 });
+
+    // Musik (opsional)
+    this.load.audio('bgm', ASSETS.bgm);
+  }
+
+  create() {
+    // -------- Musik (aman jika file tidak ada)
+    try {
+      if (this.cache.audio.exists('bgm')) {
+        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.35 });
+        this.bgm.play();
+      }
+    } catch(_) {}
+
+    // -------- Parallax background (lebih lambat)
+    this.layers = [
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city1').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city2').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city3').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city4').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city5').setOrigin(0,0),
+      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city6').setOrigin(0,0),
+    ];
+    // Kecepatan parallax (px/detik) — kecil agar nyaman
+    this.parallaxSpeed = [6, 10, 14, 20, 28, 36];
+
+    // -------- Physics world
+    this.physics.world.setBounds(0, 0, GAME_W, GAME_H);
+    this.groundY = GAME_H - 86; // ketinggian “tanah” imajiner
+
+    // Player
+    this.player = this.physics.add.sprite(160, this.groundY - 64, 'skater', 1);
+    this.player.setCollideWorldBounds(true);
+    this.player.setGravityY(GRAVITY_Y);
+    // Hitbox lebih kecil (fair)
+    this.player.body.setSize(60, 80).setOffset(34, 36);
+
+    // Animations
+    this.anims.create({ key: 'ride', frames: this.anims.generateFrameNumbers('skater', { start: 1, end: 4 }), frameRate: 10, repeat: -1 });
+    this.anims.create({ key: 'jump', frames: this.anims.generateFrameNumbers('skater', { start: 5, end: 7 }), frameRate: 12, repeat: 0 });
+    this.anims.create({ key: 'idle', frames: [{ key: 'skater', frame: 0 }], frameRate: 1 });
+    this.anims.create({ key: 'crash', frames: [{ key: 'skater', frame: 8 }], frameRate: 1 });
+
+    this.player.play('ride');
+
+    // Kontrol lompat
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.input.on('pointerdown', () => this.tryJump());
+
+    // Score & Lives (hearts)
+    this.score = 0;
+    this.lives = MAX_LIVES;
+    this.scoreText = this.add.text(16, 18, 'Score: 0', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '28px', color: '#ffffff'
+    });
+    this.hearts = [];
+    for (let i = 0; i < MAX_LIVES; i++) {
+      const h = this.add.text(GAME_W - 28 - i*28, 18, '❤', { fontSize: '28px' }).setTint(0xff6b81).setOrigin(1,0);
+      this.hearts.push(h);
     }
-    create(){
-      this.cameras.main.setBackgroundColor('#0f1418');
 
-      // splash di belakang
-      const splash = this.add.image(W/2, H/2, 'splash').setDepth(0).setAlpha(0.20);
-      const s = Math.max(W/splash.width, H/splash.height);
-      splash.setScale(s);
+    // Grup Obstacles
+    this.obstacles = this.physics.add.group();
+    this.lastSpawnAt = 0;
 
-      // judul
-      this.add.text(W/2, 86, 'Rialo Skater', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize: 48, color:'#E6F6EF'
-      }).setOrigin(0.5).setDepth(2);
+    // Collider
+    this.physics.add.overlap(this.player, this.obstacles, this.handleHit, null, this);
 
-      // kartu preview MAP (kiri)
-      const mapCard = this.add.rectangle(W*0.28, H*0.48, 460, 300, 0x0f1418, 0.55)
-        .setStrokeStyle(2, 0x3BE0B6, 0.9).setDepth(1);
-      const mapImg = this.add.image(mapCard.x, mapCard.y, 'map_preview').setDepth(1);
-      mapCard.disableInteractive(); mapImg.disableInteractive(); // biar ga nutup input
-      const ms = Math.min(420/mapImg.width, 260/mapImg.height); mapImg.setScale(ms);
-      this.add.text(mapCard.x, mapCard.y - mapCard.height/2 - 26, 'Map', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize: 20, color:'#9BEAC9'
-      }).setOrigin(0.5,1).setDepth(1);
+    // Timer score dan spawn
+    this.time.addEvent({ delay: 150, loop: true, callback: () => { this.score += 1; this.scoreText.setText(`Score: ${this.score}`); }});
+    this.scheduleNextObstacle();
 
-      // kartu preview CHAR (kanan)
-      const charCard = this.add.rectangle(W*0.72, H*0.48, 460, 300, 0x0f1418, 0.55)
-        .setStrokeStyle(2, 0x3BE0B6, 0.9).setDepth(1);
-      const chImg = this.add.image(charCard.x, charCard.y, 'char_preview').setDepth(1);
-      charCard.disableInteractive(); chImg.disableInteractive();
-      const cs = Math.min(360/chImg.width, 260/chImg.height); chImg.setScale(cs);
-      this.add.text(charCard.x, charCard.y - charCard.height/2 - 26, 'Character', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize: 20, color:'#9BEAC9'
-      }).setOrigin(0.5,1).setDepth(1);
+    // Flag status
+    this.isGameOver = false;
+    this.invulnUntil = 0;
+  }
 
-      // tombol
-      const btn = this.add.text(W/2, H - 104, 'SKATE!', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize: 30, color:'#0F1720', backgroundColor:'#46ECCA', padding:{x:24,y:12}
-      }).setOrigin(0.5).setDepth(3).setInteractive({useHandCursor:true});
+  scheduleNextObstacle() {
+    const delay = Phaser.Math.Between(OBST_MIN_DELAY, OBST_MAX_DELAY);
+    this.time.delayedCall(delay, () => this.spawnObstacle());
+  }
 
-      // footer Powered by Rialo
-      this.add.text(W/2, H - 28, 'Powered by Rialo', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize: 16, color:'#9BEAC9'
-      }).setOrigin(0.5,1).setDepth(2);
+  spawnObstacle() {
+    if (this.isGameOver) return;
 
-      // musik: cue diputar nanti di scene main (biar looping bersih)
-      this.soundClick = this.sound.get('click') || this.sound.add('click', {volume:0.7});
+    // Pilih tekstur random
+    const keys = ['obs_barrier', 'obs_barrier2', 'obs_cone'];
+    const key = Phaser.Utils.Array.GetRandom(keys);
 
-      btn.on('pointerdown', () => {
-        this.soundClick?.play({seek:0});
-        this.scene.start('main');
-      });
+    const y = this.groundY - 12; // dasar obstacle
+    const obj = this.obstacles.create(GAME_W + 40, y, key);
+    obj.setOrigin(0.5, 1);
+    obj.setImmovable(true);
+    obj.body.allowGravity = false;
+
+    // Skala & hitbox yang wajar biar fair
+    obj.setScale(0.95);
+    obj.body.setSize(obj.width * 0.7, obj.height * 0.6).setOffset(obj.width * 0.15, obj.height * 0.4);
+
+    // Kecepatan mendekat (lebih santai)
+    obj.setVelocityX(-BASE_SPEED);
+
+    // Hapus ketika keluar layar
+    obj.checkWorldBounds = true;
+    obj.outOfBoundsKill = true;
+
+    // Jadwalkan spawn berikutnya
+    this.scheduleNextObstacle();
+  }
+
+  tryJump() {
+    if (this.isGameOver) return;
+    const onGround = this.player.body.blocked.down || this.player.y >= this.groundY - 64;
+    if (onGround) {
+      this.player.setVelocityY(JUMP_VELOCITY);
+      this.player.play('jump', true);
     }
   }
 
-  // ===== MAIN =====
-  class Main extends Phaser.Scene {
-    constructor(){ super('main'); }
-    create(){
-      this.speed = SPEED_START;
-      this.score = 0;
-      this.lives = 3;
-      this.invincible = false;
-      this.lastObstacleX = -99999;
+  handleHit(player, obstacle) {
+    const now = this.time.now;
+    if (now < this.invulnUntil || this.isGameOver) return;
 
-      // BGM (aman kalau tidak ada file)
-      if (!this.sound.get('bgm')) {
-        try { this.bgm = this.sound.add('bgm', { loop:true, volume:0.35 }); this.bgm.play(); }
-        catch { /* no audio file, ignore */ }
-      } else {
-        this.bgm = this.sound.get('bgm'); if (!this.bgm.isPlaying) this.bgm.play();
-      }
+    this.lives -= 1;
+    this.updateHearts();
 
-      // PARALLAX
-      this.layers = [];
-      for (let i=1;i<=6;i++){
-        const key = 'city'+i;
-        const img = this.textures.get(key).getSourceImage();
-        const sc = H / img.height;
-        const t = this.add.tileSprite(0,0,W,H,key).setOrigin(0).setScrollFactor(0).setDepth(i);
-        t.setTileScale(sc, sc); t.tilePositionY = 0; this.layers.push(t);
-      }
+    // Efek “crash singkat” + invuln 1000ms
+    player.play('crash', true);
+    player.setTint(0xff8080);
+    this.invulnUntil = now + 1000;
+    this.time.delayedCall(200, () => player.clearTint());
+    this.time.delayedCall(220, () => player.play('ride'));
 
-      // ground
-      const groundY = H - 96;
-      const ground = this.add.rectangle(W/2, groundY, W, 10, 0x000000, 0).setDepth(10);
-      this.physics.add.existing(ground, true);
-
-      // player
-      this.player = this.physics.add.sprite(220, groundY-64, 'skater', 0).setDepth(11);
-      this.player.setCollideWorldBounds(true);
-      this.player.setGravityY(GRAVITY_Y);
-      // hitbox lebih “adil”: sedikit lebih ramping & pendek
-      this.player.setSize(54,84).setOffset(37,30);
-      this.physics.add.collider(this.player, ground);
-
-      // anim
-      this.anims.create({ key:'idle',  frames:[{key:'skater',frame:0}], frameRate:1,  repeat:-1 });
-      this.anims.create({ key:'push',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:10, repeat:-1 });
-      this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:12, repeat:0 });
-      this.anims.create({ key:'crash', frames:[{key:'skater',frame:8}], frameRate:1,  repeat:0 });
-      this.player.play('push');
-
-      // input
-      this.cursors = this.input.keyboard.createCursorKeys();
-      this.input.on('pointerdown', () => this.tryJump());
-
-      // obstacles
-      this.obstacles = this.physics.add.group();
-      this.physics.add.collider(this.obstacles, ground);
-
-      // overlap dengan validasi “fair jump”
-      this.physics.add.overlap(this.player, this.obstacles, (pl, ob) => {
-        // jika pemain sudah jelas di atas obstacle => abaikan (clear)
-        const playerBottom = pl.body.bottom;
-        const obstacleTop  = ob.body.top;
-        if (playerBottom <= obstacleTop - 6) return; // aman, tidak kena
-        this.onHit();
-      });
-
-      // spawn
-      this.time.delayedCall(FIRST_SPAWN_DELAY, () => this.scheduleNextSpawn());
-
-      // UI
-      this.scoreText = this.add.text(20, 18, 'Score: 0', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial', fontSize: 26, color:'#E6F6EF'
-      }).setDepth(20);
-      this.livesText = this.add.text(W-26, 18, '♥♥♥', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial', fontSize: 28, color:'#FF6B6B'
-      }).setOrigin(1,0).setDepth(20);
-
-      // timers
-      this.time.addEvent({ delay: SPEED_UP_EVERY_MS, loop:true,
-        callback: () => this.speed = Math.min(SPEED_MAX, this.speed + SPEED_INC)
-      });
-      this.time.addEvent({ delay: 120, loop:true,
-        callback: () => { this.score += 1; this.scoreText.setText('Score: '+this.score); }
-      });
-    }
-
-    tryJump(){
-      const onFloor = this.player.body?.blocked?.down || this.player.body?.touching?.down;
-      if (onFloor){
-        this.player.setVelocityY(JUMP_VELOCITY);
-        this.player.play('jump', true);
-      }
-    }
-
-    scheduleNextSpawn(){
-      const delay = Phaser.Math.Between(SPAWN_MIN_MS, SPAWN_MAX_MS);
-      this.time.delayedCall(delay, () => {
-        this.spawnObstacle();
-        this.scheduleNextSpawn();
-      });
-    }
-
-    spawnObstacle(){
-      // jaga jarak piksel minimal
-      if (this.lastObstacleX !== -99999) {
-        const dist = W - this.lastObstacleX;
-        if (dist < MIN_GAP_PX) return;
-      }
-      const keys = ['ob_barrier','ob_barrier2','ob_cone'].filter(k => this.textures.exists(k));
-      if (!keys.length) return;
-      const key = Phaser.Utils.Array.GetRandom(keys);
-
-      const ob = this.obstacles.create(W + 80, H - 108, key).setDepth(11);
-      ob.setOrigin(0.5,1).setImmovable(true);
-      ob.body.allowGravity = false;
-      // hitbox obstacle dirapikan
-      if (key === 'ob_cone') ob.body.setSize(42, 52).setOffset((ob.width-42)/2, ob.height-52);
-      else                   ob.body.setSize(ob.width*0.8, ob.height*0.85).setOffset(ob.width*0.1, ob.height*0.15);
-      ob.setVelocityX(-this.speed);
-
-      this.lastObstacleX = ob.x;
-    }
-
-    onHit(){
-      if (this.invincible) return;
-      this.lives -= 1; this.updateLives();
-      this.invincible = true;
-      this.player.play('crash', true);
-      this.tweens.add({
-        targets:this.player, alpha:0.2, duration:100, yoyo:true, repeat:5,
-        onComplete:()=>{ this.player.alpha=1; this.invincible=false;
-          const onFloor = this.player.body?.blocked?.down || this.player.body?.touching?.down;
-          if (onFloor) this.player.play('push',true);
-        }
-      });
-      if (this.lives <= 0) this.gameOver();
-    }
-
-    updateLives(){
-      this.livesText.setText('♥'.repeat(Math.max(0,this.lives)));
-    }
-
-    gameOver(){
-      this.physics.world.pause();
-      this.bgm?.stop();
-
-      this.add.rectangle(W/2,H/2,W,H,0x000000,0.55).setDepth(30);
-      this.add.text(W/2, H/2-52, 'Game Over', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial', fontSize:56, color:'#FFFFFF'
-      }).setOrigin(0.5).setDepth(31);
-      this.add.text(W/2, H/2+0, `Score: ${this.score}`, {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial', fontSize:24, color:'#9BEAC9'
-      }).setOrigin(0.5).setDepth(31);
-
-      // tombol share ke X/Twitter
-      const share = this.add.text(W/2, H/2+56, 'Share to X/Twitter', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize:20, color:'#0F1720', backgroundColor:'#FFD166', padding:{x:16,y:8}
-      }).setOrigin(0.5).setDepth(31).setInteractive({useHandCursor:true});
-      share.on('pointerdown', () => {
-        const text = encodeURIComponent(`Aku baru saja mencetak skor ${this.score} di Rialo Skater! 🛹`);
-        const url  = encodeURIComponent(location.href);
-        const tw   = `https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=RialoSkater,Rialo`;
-        window.open(tw, '_blank');
-      });
-
-      const back = this.add.text(W/2, H/2+100, 'Back to Title', {
-        fontFamily:'system-ui,-apple-system,Segoe UI,Roboto,Arial',
-        fontSize:20, color:'#0F1720', backgroundColor:'#46ECCA', padding:{x:16,y:8}
-      }).setOrigin(0.5).setDepth(31).setInteractive({useHandCursor:true});
-      back.on('pointerdown', () => this.scene.start('title'));
-    }
-
-    update(_, dt=16){
-      // parallax sangat pelan
-      for (let i=0;i<this.layers.length;i++){
-        this.layers[i].tilePositionX += this.speed * LAYER_SPEEDS[i] * PARALLAX_MULT * (dt/16);
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.cursors.space) || Phaser.Input.Keyboard.JustDown(this.cursors.up)){
-        this.tryJump();
-      }
-      // sync speed + bersih-bersih
-      this.obstacles.children.iterate(ob => {
-        if (!ob) return;
-        if (ob.active) ob.setVelocityX(-this.speed);
-        if (ob.x < -140) ob.destroy();
-      });
-      // balik anim push saat mendarat
-      const onFloor = this.player.body?.blocked?.down || this.player.body?.touching?.down;
-      if (onFloor && !this.invincible && this.player.anims.currentAnim?.key !== 'push'){
-        this.player.play('push', true);
-      }
+    if (this.lives <= 0) {
+      this.gameOver();
+    } else {
+      // Knockback kecil
+      player.setVelocityX(-30);
+      this.time.delayedCall(200, () => player.setVelocityX(0));
     }
   }
 
-  // ===== CONFIG =====
-  const config = {
-    type: Phaser.AUTO,
-    parent: 'game-root',
-    width: W, height: H,
-    backgroundColor: '#0f1418',
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: W, height: H },
-    physics: { default:'arcade', arcade:{ gravity:{ y:0 }, debug:false } },
-    scene: [Title, Main],
-  };
+  updateHearts() {
+    this.hearts.forEach((h, i) => {
+      h.setAlpha(i < this.lives ? 1 : 0.25);
+    });
+  }
 
-  window.addEventListener('load', () => new Phaser.Game(config));
-})();
+  gameOver() {
+    this.isGameOver = true;
+    this.player.play('crash');
+    this.obstacles.children.iterate(o => o && o.setVelocityX(0));
+    if (this.bgm) this.bgm.stop();
+
+    // Overlay
+    const dim = this.add.rectangle(0,0,GAME_W,GAME_H,0x000000,0.6).setOrigin(0);
+    const panel = this.add.rectangle(GAME_W/2, GAME_H/2, 620, 320, 0x0f172a, 0.95)
+      .setStrokeStyle(6, 0x22e3a3);
+
+    this.add.text(GAME_W/2, panel.y - 100, 'Game Over', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '54px', color: '#e3f2fd', fontStyle: '900'
+    }).setOrigin(0.5);
+
+    this.add.text(GAME_W/2, panel.y - 28, `Score: ${this.score}`, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '32px', color: '#b2ebf2'
+    }).setOrigin(0.5);
+
+    // Tombol Restart
+    const btnR = this.add.rectangle(GAME_W/2 - 120, panel.y + 70, 200, 60, 0x22e3a3)
+      .setStrokeStyle(4, 0x061016).setInteractive({ cursor: 'pointer' });
+    this.add.text(btnR.x, btnR.y, 'Restart', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontStyle: '800', color: '#061016'
+    }).setOrigin(0.5);
+    btnR.on('pointerup', () => this.scene.restart());
+
+    // Tombol Share Twitter
+    const btnS = this.add.rectangle(GAME_W/2 + 120, panel.y + 70, 200, 60, 0x1DA1F2)
+      .setStrokeStyle(4, 0x061016).setInteractive({ cursor: 'pointer' });
+    this.add.text(btnS.x, btnS.y, 'Share', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '26px', fontStyle: '800', color: '#ffffff'
+    }).setOrigin(0.5);
+
+    btnS.on('pointerup', () => {
+      const text = encodeURIComponent(`Skor gue di Rialo Skater: ${this.score}! 🛹`);
+      const url  = encodeURIComponent(window.location.href);
+      const via  = 'Rialo'; // optional
+      const intent = `https://twitter.com/intent/tweet?text=${text}&url=${url}&via=${via}`;
+      window.open(intent, '_blank');
+    });
+  }
+
+  update(time, delta) {
+    // Geser parallax pelan (px/frame)
+    const dt = delta / 1000; // detik
+    this.layers.forEach((layer, i) => {
+      layer.tilePositionX += this.parallaxSpeed[i] * dt;
+    });
+
+    // Transisi animasi lompat -> ride saat mendarat
+    if (!this.isGameOver) {
+      const onGround = this.player.body.blocked.down || this.player.y >= this.groundY - 64;
+      if (onGround && this.player.anims.currentAnim && this.player.anims.currentAnim.key === 'jump') {
+        this.player.play('ride');
+      }
+    }
+
+    // Kontrol keyboard
+    if (this.cursors.space?.isDown || this.cursors.up?.isDown) {
+      this.tryJump();
+    }
+
+    // Bersihkan obstacle di luar layar
+    this.obstacles.children.iterate(o => {
+      if (o && o.x < -100) o.destroy();
+    });
+  }
+}
+
+// ---------- Game Config ----------
+const config = {
+  type: Phaser.AUTO,
+  width: GAME_W,
+  height: GAME_H,
+  backgroundColor: '#0b0f14',
+  parent: 'game-root',
+  physics: {
+    default: 'arcade',
+    arcade: {
+      debug: false,
+      gravity: { y: 0 }
+    }
+  },
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: [SplashScene, PreviewScene, GameScene],
+};
+
+new Phaser.Game(config);
