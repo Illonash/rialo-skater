@@ -89,8 +89,8 @@ class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
 
   preload() {
-    // City (pakai satu tekstur saja untuk strip latar)
-    this.load.image('cityStrip', 'assets/maps/city/city6.png'); // pilih yang kamu suka
+    // parallax city (6 layer)
+    for (let i=1;i<=6;i++) this.load.image(`city${i}`, `assets/maps/city/city${i}.png`);
     // Obstacles
     this.load.image('obs_barrier',  'assets/obstacles/barrier.png');
     this.load.image('obs_barrier2', 'assets/obstacles/barrier2.png');
