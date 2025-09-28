@@ -131,7 +131,7 @@ class Game extends Phaser.Scene{
     // Anim
     this.anims.create({key:'idle',  frames:[{key:'skater',frame:0}], frameRate:1,  repeat:-1});
     this.anims.create({key:'run',   frames:this.anims.generateFrameNumbers('skater',{start:1,end:3}), frameRate:12, repeat:-1});
-    this.anims.create({key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:6}), frameRate:12, repeat:0});
+    this.anims.create({key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:5}), frameRate:12, repeat:0});
     this.anims.create({key:'crash', frames:[{key:'skater',frame:8}], frameRate:1,  repeat:0});
     this.player.play('run');
 
