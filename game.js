@@ -112,6 +112,16 @@ class GameScene extends Phaser.Scene {
       }
     } catch(_) {}
 
+     // Parallax layers
+    this.layers=[];
+    const base=[0.06,0.10,0.20,0.35,0.55,0.80];
+    for(let i=1;i<=6;i++){
+      const k='city'+i, ts=this.add.tileSprite(0,0,W,H,k).setOrigin(0,0);
+      const img=this.textures.get(k).getSourceImage();
+      const s=Math.max(W/img.width,H/img.height); ts.setTileScale(s,s);
+      this.layers.push({ts,base:base[i-1],speed:base[i-1]});
+    }
+     
     // ====== PARAM ETALON ======
     this.groundY = GAME_H - 90;     // tinggi lantai (kamu bisa tweak)
     const CITY_H = 324;             // tinggi asli sprite city (assets parallax dari itch kira-kira segini)
