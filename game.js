@@ -76,10 +76,11 @@ class SelectScene extends Phaser.Scene {
     this.load.image('city6', ASSET.city6);
 
     // obstacles
-    this.load.image('ob_barrier1', ASSET.ob1);
-    this.load.image('ob_barrier2', ASSET.ob2);
-    this.load.image('ob_cone',     ASSET.ob3);
-  }
+    // preload obstacles
+this.load.image('ob_barrier', 'assets/obstacles/barrier.png');
+this.load.image('ob_barrier2', 'assets/obstacles/barrier2.png');
+this.load.image('ob_cone', 'assets/obstacles/cone.png');
+
   create(){
     const cam = this.cameras.main;
     cam.setBackgroundColor('#0f1418');
