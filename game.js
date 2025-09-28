@@ -25,8 +25,8 @@ class Boot extends Phaser.Scene {
     }
 
     // Obstacles (perhatikan ejaan barier*)
-    this.load.image('ob_barrier1', 'assets/obstacles/barier.png');
-    this.load.image('ob_barrier2', 'assets/obstacles/barier2.png');
+    this.load.image('ob_barrier1', 'assets/obstacles/barrier.png');
+    this.load.image('ob_barrier2', 'assets/obstacles/barrier2.png');
     this.load.image('ob_cone',     'assets/obstacles/cone.png');
   }
   create(){ this.scene.start('splash'); }
@@ -130,8 +130,8 @@ class Game extends Phaser.Scene{
 
     // Anim
     this.anims.create({key:'idle',  frames:[{key:'skater',frame:0}], frameRate:1,  repeat:-1});
-    this.anims.create({key:'run',   frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:12, repeat:-1});
-    this.anims.create({key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:12, repeat:0});
+    this.anims.create({key:'run',   frames:this.anims.generateFrameNumbers('skater',{start:1,end:3}), frameRate:12, repeat:-1});
+    this.anims.create({key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:6}), frameRate:12, repeat:0});
     this.anims.create({key:'crash', frames:[{key:'skater',frame:8}], frameRate:1,  repeat:0});
     this.player.play('run');
 
