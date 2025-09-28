@@ -1,44 +1,48 @@
-/* ================== RIALO SKATER — GAME.JS ================== */
+/* ===== RIALO SKATER — GAME.JS ===== */
 const W = 1280, H = 720;
 const STORAGE_KEY = 'rialo_skater_leaderboard_v1';
 
-// -------------------- BOOT --------------------
-class Boot extends Phaser.Scene{
+// ---------- BOOT ----------
+class Boot extends Phaser.Scene {
   constructor(){ super('boot'); }
   preload(){
-    // Spritesheet karakter (9 frame, 128x128)
-    this.load.spritesheet('skater','assets/skater_girl.png',{frameWidth:128,frameHeight:128});
+    // debug log load error (kalau ada 404)
+    this.load.on('loaderror', f => console.warn('LOAD ERROR:', f?.key, f?.src));
 
-    // Gambar splash & preview
+    // karakter
+    this.load.spritesheet('skater','assets/skater_girl.png',{ frameWidth:128, frameHeight:128 });
+
+    // UI
     this.load.image('splash','assets/splash_16x9.png');
     this.load.image('char_preview','assets/char_skater_preview.png');
     this.load.image('map_city_preview','assets/maps/city/map_city_preview.png');
 
-    // Parallax city 6 layer
-    for(let i=1;i<=6;i++) this.load.image('city'+i,`assets/maps/city/city${i}.png`);
+    // parallax city (6 layer)
+    for (let i=1;i<=6;i++) this.load.image(`city${i}`, `assets/maps/city/city${i}.png`);
 
-    // Obstacles
-    this.load.image('ob_cone','assets/obstacles/cone.png');
-    this.load.image('ob_barier','assets/obstacles/barier.png');
+    // obstacles
+    this.load.image('ob_barier', 'assets/obstacles/barier.png');
     this.load.image('ob_barier2','assets/obstacles/barier2.png');
+    this.load.image('ob_cone',   'assets/obstacles/cone.png');
   }
   create(){ this.scene.start('splash'); }
 }
 
-// -------------------- SPLASH --------------------
-class Splash extends Phaser.Scene{
+// ---------- SPLASH ----------
+class Splash extends Phaser.Scene {
   constructor(){ super('splash'); }
   create(){
     const cx=W/2, cy=H/2;
-    const tex=this.textures.get('splash')?.getSourceImage?.();
-    if(tex && tex.width){
-      const bg=this.add.image(cx,cy,'splash').setOrigin(0.5);
-      const s=Math.max(W/tex.width,H/tex.height); bg.setScale(s);
+    const hasSplash = this.textures.exists('splash');
+    if (hasSplash){
+      const img = this.add.image(cx,cy,'splash').setOrigin(0.5);
+      const s=Math.max(W/img.width,H/img.height); img.setScale(s);
     }else{
-      this.cameras.main.setBackgroundColor('#101316');
+      this.cameras.main.setBackgroundColor('#11161c');
       this.add.text(cx,cy-60,'Rialo Skater',{fontFamily:'system-ui',fontSize:48,color:'#fff',fontStyle:'bold'}).setOrigin(0.5);
-      this.add.text(cx,cy-16,'Rethink • Rebuild • Rialo',{fontFamily:'system-ui',fontSize:20,color:'#b8c0cc'}).setOrigin(0.5);
+      this.add.text(cx,cy-18,'Rethink • Rebuild • Rialo',{fontFamily:'system-ui',fontSize:20,color:'#b8c0cc'}).setOrigin(0.5);
     }
+
     const btn=this.add.rectangle(cx,cy+210,240,64,0xFFC62E).setInteractive({useHandCursor:true});
     this.add.text(btn.x,btn.y,'PLAY',{fontFamily:'system-ui',fontSize:26,color:'#111',fontStyle:'bold'}).setOrigin(0.5);
     btn.on('pointerup',()=>this.scene.start('menu'));
@@ -46,7 +50,7 @@ class Splash extends Phaser.Scene{
   }
 }
 
-// -------------------- MENU --------------------
+// ---------- MENU ----------
 class Menu extends Phaser.Scene{
   constructor(){ super('menu'); }
   create(){
@@ -56,76 +60,79 @@ class Menu extends Phaser.Scene{
     const colW=(W - marginX*2 - gap)/2;
     const leftX=marginX+colW/2, rightX=W-marginX-colW/2;
 
-    // Map preview (kiri)
+    // Map (kiri)
     this.add.text(leftX,70,'City',{fontFamily:F,fontSize:24,color:'#fff'}).setOrigin(0.5,1);
     this.add.rectangle(leftX, 330, colW, 280, 0x11161c).setStrokeStyle(2,0x2c3440);
-    const mtex=this.textures.get('map_city_preview').getSourceImage();
     const mp=this.add.image(leftX,330,'map_city_preview').setOrigin(0.5);
-    mp.setScale(Math.min((colW-20)/mtex.width,(280-20)/mtex.height));
+    const mtex=this.textures.get('map_city_preview').getSourceImage(); 
+    if (mtex) mp.setScale(Math.min((colW-20)/mtex.width,(280-20)/mtex.height));
 
-    // Character preview (kanan)
+    // Character (kanan)
     this.add.text(rightX,70,'Skater Girl',{fontFamily:F,fontSize:24,color:'#fff'}).setOrigin(0.5,1);
     this.add.rectangle(rightX, 315, colW, 320, 0x11161c).setStrokeStyle(2,0x2c3440);
-    const cp=this.textures.get('char_preview').getSourceImage();
     const ch=this.add.image(rightX,315,'char_preview').setOrigin(0.5);
-    ch.setScale(Math.min((colW*0.78)/cp.width,(320*0.78)/cp.height));
+    const cp=this.textures.get('char_preview').getSourceImage();
+    if (cp) ch.setScale(Math.min((colW*0.78)/cp.width,(320*0.78)/cp.height));
     this.add.rectangle(rightX,315,colW+4,320+4).setStrokeStyle(4,0x35e1a1);
 
-    // Tombol
-    const btn=this.add.rectangle(W/2, H-90, 260, 64, 0x35e1a1).setInteractive({useHandCursor:true});
+    // tombol
+    const btn=this.add.rectangle(W/2,H-90,260,64,0x35e1a1).setInteractive({useHandCursor:true});
     this.add.text(btn.x,btn.y,'SKATE!',{fontFamily:F,fontSize:26,color:'#111',fontStyle:'bold'}).setOrigin(0.5);
     btn.on('pointerup',()=>this.scene.start('game'));
     this.input.keyboard.on('keydown',e=>{ if(e.code==='Enter'||e.code==='Space') this.scene.start('game'); });
   }
 }
 
-// -------------------- GAME --------------------
+// ---------- GAME ----------
 class Game extends Phaser.Scene{
   constructor(){ super('game'); }
   create(){
-    // Parallax layers
+    // parallax
     this.layers=[];
     const base=[0.06,0.10,0.20,0.35,0.55,0.80];
     for(let i=1;i<=6;i++){
-      const k='city'+i, ts=this.add.tileSprite(0,0,W,H,k).setOrigin(0,0);
-      const img=this.textures.get(k).getSourceImage();
-      const s=Math.max(W/img.width,H/img.height); ts.setTileScale(s,s);
-      this.layers.push({ts,base:base[i-1],speed:base[i-1]});
+      const key=`city${i}`;
+      const ts=this.add.tileSprite(0,0,W,H,key).setOrigin(0,0);
+      const img=this.textures.get(key).getSourceImage();
+      const sc=Math.max(W/img.width,H/img.height); ts.setTileScale(sc,sc);
+      this.layers.push({ts, base:base[i-1], speed:base[i-1]});
     }
 
-    // World & ground
+    // world & ground
     this.physics.world.setBounds(0,0,Number.MAX_SAFE_INTEGER/4,H);
     this.groundY=H-90;
     this.add.rectangle(W/2,this.groundY+1,W,2,0x000000,0.25).setScrollFactor(0).setDepth(5);
 
-    // Player
+    // player
     this.player=this.physics.add.sprite(200,this.groundY-60,'skater',0).setScale(1.2).setDepth(20);
     this.player.setCollideWorldBounds(true);
-    this.anims.create({key:'idle',frames:[{key:'skater',frame:0}],frameRate:1,repeat:-1});
-    this.anims.create({key:'run',frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}),frameRate:12,repeat:-1});
-    this.anims.create({key:'jump',frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}),frameRate:12,repeat:0});
-    this.anims.create({key:'crash',frames:[{key:'skater',frame:8}],frameRate:1,repeat:0});
+
+    // anim
+    this.anims.create({key:'idle', frames:[{key:'skater',frame:0}], frameRate:1, repeat:-1});
+    this.anims.create({key:'run',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:12, repeat:-1});
+    this.anims.create({key:'jump', frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:12, repeat:0});
+    this.anims.create({key:'crash',frames:[{key:'skater',frame:8}], frameRate:1, repeat:0});
     this.player.play('run');
 
-    // HUD
+    // hud
     this.hp=3; this.inv=false; this.score=0;
     this.baseSpeed=120; this.speed=this.baseSpeed;
     this.scoreTxt=this.add.text(20,18,'Score: 0',{fontFamily:'system-ui',fontSize:24,color:'#fff'}).setScrollFactor(0);
     this.hpTxt=this.add.text(W-20,18,'♥♥♥',{fontFamily:'system-ui',fontSize:28,color:'#ff5a6a'}).setOrigin(1,0).setScrollFactor(0);
 
-    // Groups
+    // groups
     this.obstacles=this.physics.add.group();
     this.gems=this.physics.add.group();
 
-    // Spawners
+    // spawners
     this.obTimer=this.time.addEvent({delay:2000, loop:true, callback:()=>this.spawnObstacle()});
     this.gemTimer=this.time.addEvent({delay:1300, loop:true, callback:()=>this.spawnGem()});
     this.time.addEvent({delay:25000, loop:true, callback:()=>this.rampUp()});
 
-    // Collisions
+    // collide
     this.physics.add.collider(this.player,this.obstacles,()=>this.hit());
 
-    // Input
+    // input
     this.cursors=this.input.keyboard.createCursorKeys();
     this.input.on('pointerdown',()=>this.jump());
   }
@@ -163,22 +170,22 @@ class Game extends Phaser.Scene{
   }
 
   spawnObstacle(){
-    const keys=['ob_cone','ob_barier','ob_barier2'];
-    const key=Phaser.Utils.Array.GetRandom(keys);
+    const keys=['ob_cone','ob_barier','ob_barier2'].filter(k=>this.textures.exists(k));
+    const key = keys.length? Phaser.Utils.Array.GetRandom(keys) : null;
+
     const x=W+100, y=this.groundY;
     let ob;
-
-    if(this.textures.exists(key)){
+    if(key){
       ob=this.add.image(x,y,key).setOrigin(0.5,1).setDepth(15);
       this.physics.add.existing(ob);
       ob.body.setAllowGravity(false).setImmovable(true);
     }else{
+      // fallback rectangle (kalau asset belum ada)
       const t=Phaser.Utils.Array.GetRandom([{w:48,h:60,c:0xD94848},{w:64,h:28,c:0xE3C833}]);
       ob=this.add.rectangle(x,y,t.w,t.h,t.c).setOrigin(0.5,1).setDepth(15);
       this.physics.add.existing(ob);
       ob.body.setAllowGravity(false).setImmovable(true);
     }
-
     ob.body.setVelocityX(-this.speed);
     this.obstacles.add(ob);
   }
@@ -212,7 +219,7 @@ class Game extends Phaser.Scene{
   }
 }
 
-// -------------------- GAME OVER --------------------
+// ---------- GAME OVER ----------
 class Over extends Phaser.Scene{
   constructor(){ super('over'); }
   init(d){ this.final=d.score||0; }
@@ -254,7 +261,7 @@ function addScore(name,score){
   }catch{ return [{name,score}] }
 }
 
-// -------------------- PHASER GAME --------------------
+// ---------- PHASER GAME ----------
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-root',
@@ -263,4 +270,4 @@ new Phaser.Game({
   physics:{ default:'arcade', arcade:{ gravity:{y:1200}, debug:false }},
   scene:[Boot,Splash,Menu,Game,Over]
 });
-/* ================== END ================== */
+/* ===== END ===== */
