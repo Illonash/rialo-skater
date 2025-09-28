@@ -146,14 +146,27 @@ class GameScene extends Phaser.Scene {
     } catch(_) {}
 
     // -------- Parallax background (lebih lambat)
-    this.layers = [
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city1').setOrigin(0,0),
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city2').setOrigin(0,0),
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city3').setOrigin(0,0),
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city4').setOrigin(0,0),
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city5').setOrigin(0,0),
-      this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city6').setOrigin(0,0),
-    ];
+    // === BACKGROUND: 2 lapis, tidak ngetile vertikal ===
+const W = GAME_W, H = GAME_H;
+
+// 2 layer: jauh & dekat
+this.bgFar  = this.add.tileSprite(0, 0, W, H, 'city3').setOrigin(0, 0);
+this.bgNear = this.add.tileSprite(0, 0, W, H, 'city6').setOrigin(0, 0);
+
+// jangan ikut kamera
+this.bgFar.setScrollFactor(0);
+this.bgNear.setScrollFactor(0);
+
+// SESUAIKAN tinggi tile agar pas 1x tinggi layar (bikin tidak dobel ke bawah)
+const farH  = this.textures.get('city3').getSourceImage().height;
+const nearH = this.textures.get('city6').getSourceImage().height;
+this.bgFar.setTileScale(H / farH,  H / farH);
+this.bgNear.setTileScale(H / nearH, H / nearH);
+
+// kecepatan geser (pelan & nyaman)
+this.SPD_FAR  = 12;   // px/detik
+this.SPD_NEAR = 24;   // px/detik
+
     // Kecepatan parallax (px/detik) — kecil agar nyaman
     this.parallaxSpeed = [6, 10, 14, 20, 28, 36];
 
@@ -324,10 +337,9 @@ class GameScene extends Phaser.Scene {
 
   update(time, delta) {
     // Geser parallax pelan (px/frame)
-    const dt = delta / 1000; // detik
-    this.layers.forEach((layer, i) => {
-      layer.tilePositionX += this.parallaxSpeed[i] * dt;
-    });
+    const dt = delta / 1000;
+this.bgFar.tilePositionX  += this.SPD_FAR  * dt;
+this.bgNear.tilePositionX += this.SPD_NEAR * dt;
 
     // Transisi animasi lompat -> ride saat mendarat
     if (!this.isGameOver) {
