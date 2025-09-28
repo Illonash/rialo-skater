@@ -53,16 +53,6 @@ class SplashScene extends Phaser.Scene {
     const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
     bg.setScale(s);
 
-    // Title
-    this.add.text(GAME_W/2, 110, 'Rialo Skater', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '64px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
-
     // Tombol PLAY
     const play = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 70, 0xF9C315)
       .setStrokeStyle(6, 0x1f1f1f).setInteractive({ cursor: 'pointer' });
@@ -135,6 +125,9 @@ class GameScene extends Phaser.Scene {
   preload() {
     // City parallax
     ASSETS.city.forEach((p, i) => this.load.image(`city${i+1}`, p));
+    this.load.image('cityFar',  'assets/maps/city3.png'); // lapisan jauh
+    this.load.image('cityNear', 'assets/maps/city6.png'); // lapisan dekat
+
     // Obstacles
     this.load.image('obs_barrier', ASSETS.obstacles[0]);
     this.load.image('obs_barrier2', ASSETS.obstacles[1]);
