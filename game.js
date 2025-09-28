@@ -84,105 +84,165 @@ class PreviewScene extends Phaser.Scene {
   }
 }
 
-// ---------- Game Scene ----------
+// ---------- Game Scene (FIX: single-strip city + real ground) ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('GameScene'); }
+
   preload() {
-    ASSETS.city.forEach((p,i)=>this.load.image(`city${i+1}`, p));
-    this.load.image('obs_barrier', ASSETS.obstacles[0]);
-    this.load.image('obs_barrier2', ASSETS.obstacles[1]);
-    this.load.image('obs_cone', ASSETS.obstacles[2]);
-    this.load.spritesheet('skater', ASSETS.skater, { frameWidth: 128, frameHeight: 128, endFrame: 8 });
-    this.load.audio('bgm', ASSETS.bgm);
+    // City (pakai satu tekstur saja untuk strip latar)
+    this.load.image('cityStrip', 'assets/maps/city/city6.png'); // pilih yang kamu suka
+    // Obstacles
+    this.load.image('obs_barrier',  'assets/obstacles/barrier.png');
+    this.load.image('obs_barrier2', 'assets/obstacles/barrier2.png');
+    this.load.image('obs_cone',     'assets/obstacles/cone.png');
+    // Skater 9 frame @128x128
+    this.load.spritesheet('skater', 'assets/skater_girl.png', {
+      frameWidth: 128, frameHeight: 128, endFrame: 8
+    });
+    // BGM opsional
+    this.load.audio('bgm', 'assets/audio/bgm.mp3');
   }
+
   create() {
-    if (this.cache.audio.exists('bgm')) {
-      this.bgm = this.sound.add('bgm', { loop: true, volume: 0.35 });
-      this.bgm.play();
-    }
+    // ====== Musik (aman jika file tidak ada) ======
+    try {
+      if (this.cache.audio.exists('bgm')) {
+        this.bgm = this.sound.add('bgm', { loop: true, volume: 0.35 });
+        this.bgm.play();
+      }
+    } catch(_) {}
 
-    // hanya 1 layer background full screen
-    this.bg = this.add.tileSprite(0, 0, GAME_W, GAME_H, 'city3').setOrigin(0,0);
+    // ====== PARAM ETALON ======
+    this.groundY = GAME_H - 90;     // tinggi lantai (kamu bisa tweak)
+    const CITY_H = 324;             // tinggi asli sprite city (assets parallax dari itch kira-kira segini)
+    const CITY_Y = this.groundY - CITY_H + 8; // posisi y strip city supaya “duduk” di lantai
 
-    this.groundY = GAME_H - 120; // pos lantai dasar
+    // ====== SINGLE-STRIP BACKGROUND (no double) ======
+    // Lebarnya GAME_W (biar mengisi horisontal), tingginya pakai tinggi asli CITY_H agar tidak tiling vertikal
+    this.bg = this.add.tileSprite(0, CITY_Y, GAME_W, CITY_H, 'cityStrip').setOrigin(0, 0);
+    this.bgSpeed = 30; // parallax pelan & nyaman
 
-    // Player
-    this.player = this.physics.add.sprite(160, this.groundY, 'skater', 1);
+    // ====== PHYSICS: real ground ======
+    // Bikin “lantai” fisik setebal 10px di posisi groundY
+    const groundGfx = this.add.rectangle(GAME_W / 2, this.groundY, GAME_W, 10, 0x000000, 0); // invisible
+    this.physics.add.existing(groundGfx, true);  // true => Static Body
+    this.ground = groundGfx.body;                // simpan body-nya
+
+    // ====== PLAYER ======
+    this.player = this.physics.add.sprite(160, this.groundY - 64, 'skater', 1);
     this.player.setCollideWorldBounds(true);
     this.player.setGravityY(GRAVITY_Y);
-    this.player.body.setSize(60,80).setOffset(34,36);
+    // hitbox yang fair
+    this.player.body.setSize(60, 80).setOffset(34, 36);
 
-    this.anims.create({ key: 'ride', frames: this.anims.generateFrameNumbers('skater', { start:1,end:4 }), frameRate: 10, repeat: -1 });
-    this.anims.create({ key: 'jump', frames: this.anims.generateFrameNumbers('skater', { start:5,end:7 }), frameRate: 12 });
-    this.anims.create({ key: 'crash', frames: [{ key:'skater',frame:8 }], frameRate:1 });
+    this.anims.create({ key: 'ride',  frames: this.anims.generateFrameNumbers('skater',{start:1, end:4}), frameRate: 10, repeat: -1 });
+    this.anims.create({ key: 'jump',  frames: this.anims.generateFrameNumbers('skater',{start:5, end:7}), frameRate: 12 });
+    this.anims.create({ key: 'crash', frames: [{ key:'skater', frame:8 }], frameRate: 1 });
+
     this.player.play('ride');
 
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.input.on('pointerdown', ()=>this.tryJump());
+    // Collider dengan lantai → memastikan posisi kaki pas di ground & flag blocked.down bekerja
+    this.physics.add.collider(this.player, groundGfx);
 
-    this.score = 0; this.lives = MAX_LIVES;
-    this.scoreText = this.add.text(16,18,'Score: 0',{ fontSize:'28px', color:'#fff' });
-    this.hearts=[]; for(let i=0;i<MAX_LIVES;i++){
-      const h=this.add.text(GAME_W-28-i*28,18,'❤',{fontSize:'28px'}).setTint(0xff6b81).setOrigin(1,0);
+    // ====== Kontrol ======
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.input.on('pointerdown', () => this.tryJump());
+
+    // ====== UI ======
+    this.score = 0;
+    this.lives = MAX_LIVES;
+    this.scoreText = this.add.text(16, 18, 'Score: 0', { fontFamily: 'system-ui', fontSize: '28px', color: '#ffffff' });
+    this.hearts = [];
+    for (let i = 0; i < MAX_LIVES; i++) {
+      const h = this.add.text(GAME_W - 28 - i * 28, 18, '❤', { fontSize: '28px' }).setTint(0xff6b81).setOrigin(1, 0);
       this.hearts.push(h);
     }
 
-    this.obstacles=this.physics.add.group();
-    this.physics.add.overlap(this.player,this.obstacles,this.handleHit,null,this);
-
-    this.time.addEvent({delay:150,loop:true,callback:()=>{this.score+=1;this.scoreText.setText(`Score: ${this.score}`);} });
+    // ====== Obstacles ======
+    this.obstacles = this.physics.add.group();
+    this.physics.add.overlap(this.player, this.obstacles, this.handleHit, null, this);
     this.scheduleNextObstacle();
 
-    this.isGameOver=false; this.invulnUntil=0;
+    // Score tick
+    this.time.addEvent({ delay: 150, loop: true, callback: () => {
+      this.score += 1; this.scoreText.setText(`Score: ${this.score}`);
+    }});
+
+    // Flags
+    this.isGameOver = false;
+    this.invulnUntil = 0;
   }
 
-  scheduleNextObstacle(){
-    const d=Phaser.Math.Between(OBST_MIN_DELAY,OBST_MAX_DELAY);
-    this.time.delayedCall(d,()=>this.spawnObstacle());
+  scheduleNextObstacle() {
+    const delay = Phaser.Math.Between(OBST_MIN_DELAY, OBST_MAX_DELAY);
+    this.time.delayedCall(delay, () => this.spawnObstacle());
   }
 
-  spawnObstacle(){
-    if(this.isGameOver)return;
-    const keys=['obs_barrier','obs_barrier2','obs_cone'];
-    const key=Phaser.Utils.Array.GetRandom(keys);
-    const obj=this.obstacles.create(GAME_W+40,this.groundY,key);
-    obj.setOrigin(0.5,1).setImmovable(true);
-    obj.body.allowGravity=false;
+  spawnObstacle() {
+    if (this.isGameOver) return;
+    const keys = ['obs_barrier', 'obs_barrier2', 'obs_cone'];
+    const key  = Phaser.Utils.Array.GetRandom(keys);
+
+    // Tempel ke lantai (Origin 0.5,1 => titik anchor di kaki obstacle)
+    const obj = this.obstacles.create(GAME_W + 40, this.groundY, key);
+    obj.setOrigin(0.5, 1);
+    obj.setImmovable(true);
+    obj.body.allowGravity = false;
     obj.setVelocityX(-BASE_SPEED);
+
     this.scheduleNextObstacle();
   }
 
-  tryJump(){
-    if(this.isGameOver)return;
-    const onGround=this.player.body.blocked.down||this.player.y>=this.groundY-64;
-    if(onGround){
+  tryJump() {
+    if (this.isGameOver) return;
+    // Sekarang kita pakai flag fisik: blocked.down atau touching.down
+    const onGround = this.player.body.blocked.down || this.player.body.touching.down;
+    if (onGround) {
       this.player.setVelocityY(JUMP_VELOCITY);
-      this.player.play('jump',true);
+      this.player.play('jump', true);
     }
   }
 
-  handleHit(player,obstacle){
-    const now=this.time.now;
-    if(now<this.invulnUntil||this.isGameOver)return;
-    this.lives--; this.updateHearts();
-    player.play('crash'); player.setTint(0xff8080);
-    this.invulnUntil=now+1000;
-    this.time.delayedCall(200,()=>player.clearTint());
-    this.time.delayedCall(220,()=>player.play('ride'));
-    if(this.lives<=0)this.gameOver();
+  handleHit(player, obstacle) {
+    const now = this.time.now;
+    if (now < this.invulnUntil || this.isGameOver) return;
+
+    this.lives -= 1;
+    this.updateHearts();
+
+    player.play('crash', true);
+    player.setTint(0xff8080);
+    this.invulnUntil = now + 1000;
+    this.time.delayedCall(200, () => player.clearTint());
+    this.time.delayedCall(220, () => player.play('ride'));
+
+    if (this.lives <= 0) this.gameOver();
   }
 
-  updateHearts(){ this.hearts.forEach((h,i)=>h.setAlpha(i<this.lives?1:0.25)); }
-
-  gameOver(){
-    this.isGameOver=true; this.player.play('crash'); if(this.bgm)this.bgm.stop();
-    this.obstacles.setVelocityX(0);
-    this.add.text(GAME_W/2,GAME_H/2,`Game Over\nScore: ${this.score}`,{fontSize:'42px',color:'#fff'}).setOrigin(0.5);
+  updateHearts() {
+    this.hearts.forEach((h, i) => h.setAlpha(i < this.lives ? 1 : 0.25));
   }
 
-  update(time,delta){
-    this.bg.tilePositionX += BASE_SPEED * delta/1000;
-    if(this.cursors.space.isDown||this.cursors.up.isDown)this.tryJump();
+  gameOver() {
+    this.isGameOver = true;
+    this.player.play('crash');
+    if (this.bgm) this.bgm.stop();
+    this.obstacles.children.iterate(o => o && o.setVelocityX(0));
+
+    const dim = this.add.rectangle(0, 0, GAME_W, GAME_H, 0x000000, 0.6).setOrigin(0);
+    const msg = this.add.text(GAME_W / 2, GAME_H / 2, `Game Over\nScore: ${this.score}`, {
+      fontFamily: 'system-ui', fontSize: '42px', color: '#ffffff', align: 'center'
+    }).setOrigin(0.5);
+  }
+
+  update(time, delta) {
+    // Parallax halus (hanya horizontal)
+    this.bg.tilePositionX += this.bgSpeed * (delta / 1000);
+
+    if (this.cursors.space.isDown || this.cursors.up.isDown) this.tryJump();
+
+    // Bersihkan obstacle di luar layar
+    this.obstacles.children.iterate(o => { if (o && o.x < -100) o.destroy(); });
   }
 }
 
