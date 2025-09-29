@@ -9,7 +9,7 @@ const GAME_H = 720;
 const BASE_SPEED      = 180;
 const OBST_MIN_DELAY  = 1600;
 const OBST_MAX_DELAY  = 2400;
-const JUMP_VELOCITY   = -470;
+const JUMP_VELOCITY   = -500;
 const GRAVITY_Y       = 1400;
 const MAX_LIVES       = 3;
 
@@ -100,7 +100,7 @@ class GameScene extends Phaser.Scene {
     this.load.spritesheet('skater', ASSETS.skater, { frameWidth:128, frameHeight:128, endFrame:8 });
     this.load.image('obs_barrier', ASSETS.obstacles[0]);
     this.load.image('obs_cone',    ASSETS.obstacles[1]);
-   this.load.image('obs_barrier2', ASSETS.obstacles[2]);
+    this.load.image('obs_barrier2', ASSETS.obstacles[2]);
     this.load.audio('bgm', ASSETS.bgm);
   }
 
@@ -109,7 +109,7 @@ class GameScene extends Phaser.Scene {
 
     /* --- satu band city, tidak tile ke bawah --- */
     this.cityLayers = [];
-    const speeds = [6,10,14,20,28,36];
+    const speeds = [7,10,14,20,28,36];
     for (let i=0;i<6;i++){
       const key = `city${i+1}`;
       const src = this.textures.get(key).getSourceImage();
@@ -128,8 +128,8 @@ class GameScene extends Phaser.Scene {
     this.player.setDepth(10).setGravityY(GRAVITY_Y).setCollideWorldBounds(true);
     this.player.body.setSize(60,80).setOffset(34,36);
 
-    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:3}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:6}), frameRate:12, repeat:0  });
+    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:2}), frameRate:10, repeat:-1 });
+    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:3,end:6}), frameRate:12, repeat:0  });
     this.anims.create({ key:'crash', frames:[{key:'skater',frame:8}], frameRate:1 });
     this.player.play('ride');
 
