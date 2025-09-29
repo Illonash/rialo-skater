@@ -48,20 +48,33 @@ class SplashScene extends Phaser.Scene {
     this.load.image('charPreview', ASSETS.charPreview);
   }
   create(){
-    const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
-    const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
-    bg.setScale(s);
+  const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
+  const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
+  bg.setScale(s);
 
-    // Tombol PLAY
-    const btn = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 72, 0xF9C315)
-      .setStrokeStyle(6, 0x111111).setInteractive({ cursor:'pointer' });
-    this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui,sans-serif', fontSize:36, color:'#101010', fontStyle:'900' }).setOrigin(0.5);
-    btn.on('pointerup', () => this.scene.start('PreviewScene'));
+  // Tombol PLAY
+  const btn = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 72, 0xF9C315)
+    .setStrokeStyle(6, 0x111111).setInteractive({ cursor:'pointer' });
+  this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui,sans-serif', fontSize:36, color:'#101010', fontStyle:'900' }).setOrigin(0.5);
+  btn.on('pointerup', () => this.scene.start('PreviewScene'));
 
-    // Footer
-    this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', { fontFamily:'system-ui,sans-serif', fontSize:18, color:'#cfd8dc' }).setOrigin(0.5);
-  }
+  // Footer interaktif "Powered by Rialo"
+  const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', {
+    fontFamily:'system-ui,sans-serif',
+    fontSize:18,
+    color:'#cfd8dc'
+  }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
+
+  powered.on('pointerup', () => {
+    try {
+      const win = window.open('https://twitter.com/RialoHQ', '_blank', 'noopener');
+      if (!win) location.href = 'https://twitter.com/RialoHQ'; // fallback jika popup diblok
+    } catch {
+      location.href = 'https://twitter.com/RialoHQ';
+    }
+  });
 }
+
 
 /* =========================================================
    Preview Scene (sederhana)
@@ -145,7 +158,7 @@ class GameScene extends Phaser.Scene {
 
     // Animations
     this.anims.create({ key:'ride', frames:this.anims.generateFrameNumbers('skater', {start:1, end:4}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:7}), frameRate:12, repeat:0 });
+    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:6}), frameRate:12, repeat:0 });
     this.anims.create({ key:'idle', frames:[{ key:'skater', frame:0 }], frameRate:1 });
     this.anims.create({ key:'crash',frames:[{ key:'skater', frame:8 }], frameRate:1 });
     this.player.play('ride');
