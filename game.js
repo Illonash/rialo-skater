@@ -62,15 +62,6 @@ class SplashScene extends Phaser.Scene {
     this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', { fontFamily:'system-ui,sans-serif', fontSize:18, color:'#cfd8dc' }).setOrigin(0.5);
   }
 }
-create(){
-  const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
-  const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
-  bg.setScale(s);
-
-  const play = this.add.rectangle(GAME_W/2, GAME_H/2+120, 260, 72, 0xFFC62E)
-    .setStrokeStyle(6, 0x1b1b1b).setInteractive({cursor:'pointer'});
-  this.add.text(play.x, play.y, 'PLAY', {fontSize:'36px', fontFamily:'system-ui, sans-serif', color:'#0b0f14', fontStyle:'900'}).setOrigin(0.5);
-  play.on('pointerup', ()=> this.scene.start('Preview'));
 
   // --- Teks dengan link ---
   const powered = this.add.text(GAME_W/2, GAME_H-26, 'Powered by Rialo', {
