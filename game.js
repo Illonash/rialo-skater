@@ -60,8 +60,8 @@ class SplashScene extends Phaser.Scene {
 
     // Footer interaktif "Powered by Rialo" → Twitter @RialoHQ
     const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', {
-      fontFamily:'system-ui,bodoni',
-      fontSize:18,
+      fontFamily:'georgia,bodoni',
+      fontSize:22,
       color:'#66cdaa'
     }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
 
