@@ -47,25 +47,16 @@ class SplashScene extends Phaser.Scene {
     this.load.image('mapPreview', ASSETS.mapPreview);
     this.load.image('charPreview', ASSETS.charPreview);
   }
-  create () {
-  // background (unchanged)
-  const bg = this.add.image(GAME_W / 2, GAME_H / 2, 'splashBg');
-  const s = Math.max(GAME_W / bg.width, GAME_H / bg.height);
-  bg.setScale(s);
+  create(){
+    const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
+    const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
+    bg.setScale(s);
 
-  // PLAY button (unchanged, just ensure the scene key matches!)
-  const play = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 70, 0xF9C315)
-    .setStrokeStyle(6, 0x1f1f1f)
-    .setInteractive({ cursor: 'pointer' });
-  this.add.text(play.x, play.y, 'PLAY', {
-    fontFamily: 'system-ui, sans-serif',
-    fontSize: '36px',
-    color: '#1b1b1b',
-    fontStyle: '900'
-  }).setOrigin(0.5);
-
-  // ✅ use your real scene key here:
-  play.on('pointerup', () => this.scene.start('PreviewScene'));
+    // Tombol PLAY
+    const btn = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 72, 0xF9C315)
+      .setStrokeStyle(6, 0x111111).setInteractive({ cursor:'pointer' });
+    this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui,sans-serif', fontSize:36, color:'#101010', fontStyle:'900' }).setOrigin(0.5);
+    btn.on('pointerup', () => this.scene.start('PreviewScene'));
 
   // “Powered by Rialo” → Twitter
   const powered = this.add.text(GAME_W/2, GAME_H - 28, 'Powered by Rialo', {
