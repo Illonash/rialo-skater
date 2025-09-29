@@ -34,6 +34,7 @@ const ASSETS = {
   skater: 'assets/skater_girl.png', // 9 frames @128x128
   obstacles: [
     'assets/obstacles/barrier.png',
+     'assets/obstacles/barrier2.png',
     'assets/obstacles/cone.png',
   ],
   bgm: 'assets/audio/bgm.mp3', // optional
@@ -54,7 +55,7 @@ class SplashScene extends Phaser.Scene {
     this.add.text(btn.x, btn.y, 'PLAY', {fontFamily:'system-ui', fontSize:'36px', fontStyle:'900', color:'#1b1b1b'}).setOrigin(0.5);
     btn.on('pointerup', ()=> this.scene.start('PreviewScene'));
 
-    this.add.text(GAME_W/2, GAME_H-28, 'Powered by Rialo', {fontFamily:'system-ui', fontSize:'18px', color:'#cfd8dc'}).setOrigin(0.5);
+    this.add.text(GAME_W/2, GAME_H-28, 'Powered by Rialo', {fontFamily:'tigreal', fontSize:'18px', color:'#87ceeb'}).setOrigin(0.5);
   }
 }
 
@@ -99,6 +100,7 @@ class GameScene extends Phaser.Scene {
     this.load.spritesheet('skater', ASSETS.skater, { frameWidth:128, frameHeight:128, endFrame:8 });
     this.load.image('obs_barrier', ASSETS.obstacles[0]);
     this.load.image('obs_cone',    ASSETS.obstacles[1]);
+   this.load.image('obs_barrier2', ASSETS.obstacles[2]);
     this.load.audio('bgm', ASSETS.bgm);
   }
 
@@ -126,8 +128,8 @@ class GameScene extends Phaser.Scene {
     this.player.setDepth(10).setGravityY(GRAVITY_Y).setCollideWorldBounds(true);
     this.player.body.setSize(60,80).setOffset(34,36);
 
-    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:12, repeat:0  });
+    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:3}), frameRate:10, repeat:-1 });
+    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:6}), frameRate:12, repeat:0  });
     this.anims.create({ key:'crash', frames:[{key:'skater',frame:8}], frameRate:1 });
     this.player.play('ride');
 
@@ -165,7 +167,7 @@ class GameScene extends Phaser.Scene {
 
   spawnObstacle(){
     if (this.isGameOver) return;
-    const key = Phaser.Math.Between(0,1) ? 'obs_barrier' : 'obs_cone';
+    const key = Phaser.Math.Between(0,1) ? 'obs_barrier' : 'obs_cone'; 'obs_barrier2';
 
     // spawn tepat di lantai, anchor bawah
     const obj = this.obstacles.create(GAME_W + 60, GROUND_Y, key).setOrigin(0.5,1);
