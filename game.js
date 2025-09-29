@@ -8,7 +8,7 @@ const GAME_H = 720;
 
 // Tweak cepat tampilan/gameplay
 const SKY_COLOR    = '#13A9DB'; // warna langit (area atas)
-const GROUND_RATIO = 1;      // tinggi ground relatif layar (0..1) -> 0.62 ~ agak ke tengah
+const GROUND_RATIO = 0.1;      // tinggi ground relatif layar (0..1) -> 0.62 ~ agak ke tengah
 const PLAYER_X     = 160;       // posisi X awal pemain
 const PLAYER_FLOOR_OFFSET = 158; // seberapa tinggi badan pemain di atas ground
 const OB_SCALE     = 0.85;      // skala obstacle (lebih kecil sedikit)
