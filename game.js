@@ -1,5 +1,5 @@
 /* =========================================================
-   RIALO SKATER — Splash → Preview → Game (fixed)
+   RIALO SKATER — Splash → Preview → Game (fix pack 2)
    ========================================================= */
 
 const GAME_W = 1280;
@@ -9,14 +9,19 @@ const GAME_H = 720;
 const BASE_SPEED      = 180;
 const OBST_MIN_DELAY  = 1600;
 const OBST_MAX_DELAY  = 2400;
-const JUMP_VELOCITY   = -500;
+const JUMP_VELOCITY   = -470;
 const GRAVITY_Y       = 1400;
 const MAX_LIVES       = 3;
+const MAX_JUMPS       = 2;     // ← double jump
 
 /* -------- Visual layout -------- */
 const SKY_COLOR       = 0x0b9bdc;
-const GROUND_Y        = GAME_H - 150;   // ← lantai lebih tinggi
-const BAND_HEIGHT     = 440;            // ← tinggi band kota
+const GROUND_Y        = GAME_H - 150;  // lantai visual (semakin kecil → semakin ke bawah)
+const BAND_HEIGHT     = 440;           // tinggi band kota (satu strip saja)
+
+/* -------- Obstacle look -------- */
+const OBST_SCALE      = 0.85; // ← perkecil obstacle
+const OBST_FLOOR_NUDGE = 4;   // ← “tenggelamkan” 4px ke lantai supaya tidak terlihat melayang
 
 /* -------- Assets (samakan dengan repo) -------- */
 const ASSETS = {
@@ -34,7 +39,6 @@ const ASSETS = {
   skater: 'assets/skater_girl.png', // 9 frames @128x128
   obstacles: [
     'assets/obstacles/barrier.png',
-     'assets/obstacles/barrier2.png',
     'assets/obstacles/cone.png',
   ],
   bgm: 'assets/audio/bgm.mp3', // optional
@@ -55,7 +59,7 @@ class SplashScene extends Phaser.Scene {
     this.add.text(btn.x, btn.y, 'PLAY', {fontFamily:'system-ui', fontSize:'36px', fontStyle:'900', color:'#1b1b1b'}).setOrigin(0.5);
     btn.on('pointerup', ()=> this.scene.start('PreviewScene'));
 
-    this.add.text(GAME_W/2, GAME_H-28, 'Powered by Rialo', {fontFamily:'tigreal', fontSize:'18px', color:'#87ceeb'}).setOrigin(0.5);
+    this.add.text(GAME_W/2, GAME_H-28, 'Powered by Rialo', {fontFamily:'system-ui', fontSize:'18px', color:'#cfd8dc'}).setOrigin(0.5);
   }
 }
 
@@ -100,16 +104,19 @@ class GameScene extends Phaser.Scene {
     this.load.spritesheet('skater', ASSETS.skater, { frameWidth:128, frameHeight:128, endFrame:8 });
     this.load.image('obs_barrier', ASSETS.obstacles[0]);
     this.load.image('obs_cone',    ASSETS.obstacles[1]);
-    this.load.image('obs_barrier2', ASSETS.obstacles[2]);
     this.load.audio('bgm', ASSETS.bgm);
   }
 
   create(){
+    // pastikan semua timer dari sesi sebelumnya dibersihkan
+    this.time.removeAllEvents();
+    this.events.once('shutdown', ()=> this.time.removeAllEvents());
+
     this.cameras.main.setBackgroundColor(SKY_COLOR);
 
     /* --- satu band city, tidak tile ke bawah --- */
     this.cityLayers = [];
-    const speeds = [7,10,14,20,28,36];
+    const speeds = [6,10,14,20,28,36];
     for (let i=0;i<6;i++){
       const key = `city${i+1}`;
       const src = this.textures.get(key).getSourceImage();
@@ -118,7 +125,7 @@ class GameScene extends Phaser.Scene {
       const layer = this.add.tileSprite(
         0, GROUND_Y - BAND_HEIGHT, GAME_W, BAND_HEIGHT, key
       ).setOrigin(0,0);
-      layer.setTileScale(1, scaleY);   // 1 tinggi tile saja
+      layer.setTileScale(1, scaleY);
       layer.__speed = speeds[i];
       this.cityLayers.push(layer);
     }
@@ -128,8 +135,8 @@ class GameScene extends Phaser.Scene {
     this.player.setDepth(10).setGravityY(GRAVITY_Y).setCollideWorldBounds(true);
     this.player.body.setSize(60,80).setOffset(34,36);
 
-    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:2}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:3,end:6}), frameRate:12, repeat:0  });
+    this.anims.create({ key:'ride',  frames:this.anims.generateFrameNumbers('skater',{start:1,end:4}), frameRate:10, repeat:-1 });
+    this.anims.create({ key:'jump',  frames:this.anims.generateFrameNumbers('skater',{start:5,end:7}), frameRate:12, repeat:0  });
     this.anims.create({ key:'crash', frames:[{key:'skater',frame:8}], frameRate:1 });
     this.player.play('ride');
 
@@ -148,14 +155,16 @@ class GameScene extends Phaser.Scene {
     /* --- obstacles --- */
     this.obstacles = this.physics.add.group();
     this.physics.add.overlap(this.player, this.obstacles, this.onHit, null, this);
-    this.scheduleNextObstacle();
 
+    /* --- score timer & spawn pertama --- */
     this.time.addEvent({ delay:150, loop:true, callback:()=>{ this.score++; this.scoreText.setText(`Score: ${this.score}`);} });
+    this.scheduleNextObstacle();
 
     /* --- music (safe) --- */
     try{ if(this.cache.audio.exists('bgm')){ this.bgm=this.sound.add('bgm',{loop:true,volume:.35}); this.bgm.play(); } }catch(_){}
 
     this.isGameOver = false; this.invulnUntil = 0;
+    this.jumpCount  = 0; // ← reset counter lompat
   }
 
   /* ---------- helpers ---------- */
@@ -167,19 +176,35 @@ class GameScene extends Phaser.Scene {
 
   spawnObstacle(){
     if (this.isGameOver) return;
-    const key = Phaser.Math.Between(0,1) ? 'obs_barrier' : 'obs_cone'; 'obs_barrier2';
 
-    // spawn tepat di lantai, anchor bawah
-    const obj = this.obstacles.create(GAME_W + 60, GROUND_Y, key).setOrigin(0.5,1);
-    obj.setImmovable(true); obj.body.allowGravity = false; obj.setVelocityX(-BASE_SPEED);
+    const key = Phaser.Math.Between(0,1) ? 'obs_barrier' : 'obs_cone';
+
+    // spawn di lantai; origin bawah; sedikit “nudge” agar menempel lantai
+    const obj = this.obstacles.create(GAME_W + 60, GROUND_Y + OBST_FLOOR_NUDGE, key)
+      .setOrigin(0.5, 1)
+      .setScale(OBST_SCALE);
+
+    obj.setImmovable(true);
+    obj.body.allowGravity = false;
+    obj.setVelocityX(-BASE_SPEED);
+
+    // sesuaikan hitbox setelah scaling (pakai display size)
+    obj.body.setSize(obj.displayWidth * 0.7, obj.displayHeight * 0.8, true);
 
     this.scheduleNextObstacle();
   }
 
   tryJump(){
     if (this.isGameOver) return;
-    const onGround = (this.player.y >= GROUND_Y - 64 - 1); // toleransi
-    if (onGround){ this.player.setVelocityY(JUMP_VELOCITY); this.player.play('jump', true); }
+
+    const onGround = (this.player.y >= GROUND_Y - 64 - 1);
+    if (onGround) this.jumpCount = 0;
+
+    if (this.jumpCount < MAX_JUMPS){
+      this.player.setVelocityY(JUMP_VELOCITY);
+      this.player.play('jump', true);
+      this.jumpCount += 1;
+    }
   }
 
   onHit = () => {
@@ -194,7 +219,7 @@ class GameScene extends Phaser.Scene {
   updateHearts(){ this.hearts.forEach((h,i)=> h.setAlpha(i < this.lives ? 1 : 0.25)); }
 
   clampToGround(){
-    // paksa skater tidak jatuh di bawah lantai visual
+    // cegah player “tembus” di bawah lantai visual
     if (this.player.y > GROUND_Y - 64){
       this.player.y = GROUND_Y - 64;
       if (this.player.body.velocity.y > 0) this.player.setVelocityY(0);
@@ -208,7 +233,6 @@ class GameScene extends Phaser.Scene {
     this.obstacles.setVelocityX(0);
     if (this.bgm) this.bgm.stop();
 
-    // overlay
     const dim = this.add.rectangle(0,0,GAME_W,GAME_H,0x000000,0.55).setOrigin(0);
     const panel = this.add.rectangle(GAME_W/2, GAME_H/2, 640, 320, 0x0f172a, 0.95).setStrokeStyle(6, 0x22e3a3);
 
@@ -234,11 +258,15 @@ class GameScene extends Phaser.Scene {
     const t = dt/1000;
     this.cityLayers.forEach(l => l.tilePositionX += l.__speed * t);
 
-    // transisi jump -> ride saat mendarat
     if (!this.isGameOver){
       this.clampToGround();
+
       const onGround = (this.player.y >= GROUND_Y - 64 - 1);
-      if (onGround && this.player.anims.currentAnim?.key === 'jump') this.player.play('ride');
+      if (onGround && this.player.anims.currentAnim?.key === 'jump') {
+        this.player.play('ride');
+      }
+      // reset counter lompat saat menyentuh tanah
+      if (onGround) this.jumpCount = 0;
     }
 
     if (this.cursors.space?.isDown || this.cursors.up?.isDown) this.tryJump();
