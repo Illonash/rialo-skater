@@ -47,27 +47,48 @@ class SplashScene extends Phaser.Scene {
     this.load.image('mapPreview', ASSETS.mapPreview);
     this.load.image('charPreview', ASSETS.charPreview);
   }
-  create(){
-  const bg = this.add.image(GAME_W/2, GAME_H/2, 'splashBg');
-  const s = Math.max(GAME_W/bg.width, GAME_H/bg.height);
+  create () {
+  // background (unchanged)
+  const bg = this.add.image(GAME_W / 2, GAME_H / 2, 'splashBg');
+  const s = Math.max(GAME_W / bg.width, GAME_H / bg.height);
   bg.setScale(s);
 
-  const play = this.add.rectangle(GAME_W/2, GAME_H/2+120, 260, 72, 0xFFC62E)
-    .setStrokeStyle(6, 0x1b1b1b).setInteractive({cursor:'pointer'});
-  this.add.text(play.x, play.y, 'PLAY', {fontSize:'36px', fontFamily:'system-ui, sans-serif', color:'#0b0f14', fontStyle:'900'}).setOrigin(0.5);
-  play.on('pointerup', ()=> this.scene.start('Preview'));
+  // PLAY button (unchanged, just ensure the scene key matches!)
+  const play = this.add.rectangle(GAME_W/2, GAME_H/2 + 120, 260, 70, 0xF9C315)
+    .setStrokeStyle(6, 0x1f1f1f)
+    .setInteractive({ cursor: 'pointer' });
+  this.add.text(play.x, play.y, 'PLAY', {
+    fontFamily: 'system-ui, sans-serif',
+    fontSize: '36px',
+    color: '#1b1b1b',
+    fontStyle: '900'
+  }).setOrigin(0.5);
 
-  // --- Teks dengan link ---
-  const powered = this.add.text(GAME_W/2, GAME_H-26, 'Powered by Rialo', {
-    fontSize:'18px',
-    color:'#cfd8dc',
-    fontFamily:'system-ui, sans-serif'
-  }).setOrigin(0.5).setInteractive({cursor:'pointer'});
+  // ✅ use your real scene key here:
+  play.on('pointerup', () => this.scene.start('PreviewScene'));
 
-  powered.on('pointerup', () => {
-    window.open('https://twitter.com/RialoHQ', '_blank');
-  });
+  // “Powered by Rialo” → Twitter
+  const powered = this.add.text(GAME_W/2, GAME_H - 28, 'Powered by Rialo', {
+    fontFamily: 'system-ui, sans-serif',
+    fontSize: '18px',
+    color: '#cfd8dc'
+  })
+  .setOrigin(0.5)
+  .setInteractive({ cursor: 'pointer' });
+
+  const goRialo = () => {
+    try {
+      const ok = window.open('https://twitter.com/RialoHQ', '_blank', 'noopener');
+      if (!ok) location.href = 'https://twitter.com/RialoHQ'; // popup blockers fallback
+    } catch {
+      location.href = 'https://twitter.com/RialoHQ';
+    }
+  };
+
+  powered.on('pointerup', goRialo);
+  powered.on('pointerdown', goRialo); // helps on some mobile browsers
 }
+
 
 /* =========================================================
    Preview Scene (sederhana)
