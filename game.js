@@ -58,8 +58,8 @@ class SplashScene extends Phaser.Scene {
     this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui,sans-serif', fontSize:36, color:'#101010', fontStyle:'900' }).setOrigin(0.5);
     btn.on('pointerup', () => this.scene.start('PreviewScene'));
 
-    // Footer interaktif "Powered by Rialo" → Twitter @RialoHQ
-    const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', {
+    // Footer interaktif "Built by illonashanum" → Twitter @illonashanum
+    const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Built by illonashanum', {
   fontFamily: '"Shadows Into Light", cursive',
   fontSize: '28px',
   color: '#00ffff',   // kamu bisa ganti warna sesuai selera
@@ -67,16 +67,16 @@ class SplashScene extends Phaser.Scene {
 }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
 
 powered.on('pointerup', () => {
-  window.open('https://twitter.com/RialoHQ', '_blank');
+  window.open('https://x.com/illonashanum', '_blank');
 });
 
 
     const goRialo = () => {
       try {
-        const win = window.open('https://twitter.com/RialoHQ', '_blank', 'noopener');
-        if (!win) location.href = 'https://twitter.com/RialoHQ'; // fallback jika popup diblok
+        const win = window.open('https://x.com/illonashanum', '_blank', 'noopener');
+        if (!win) location.href = 'https://x.com/illonashanum'; // fallback jika popup diblok
       } catch {
-        location.href = 'https://twitter.com/RialoHQ';
+        location.href = 'https://x.com/illonashanum';
       }
     };
     powered.on('pointerup', goRialo);
@@ -166,7 +166,7 @@ class GameScene extends Phaser.Scene {
 
     // Animations
     this.anims.create({ key:'ride', frames:this.anims.generateFrameNumbers('skater', {start:1, end:4}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:6}), frameRate:12, repeat:0 });
+    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:5}), frameRate:12, repeat:0 });
     this.anims.create({ key:'idle', frames:[{ key:'skater', frame:0 }], frameRate:1 });
     this.anims.create({ key:'crash',frames:[{ key:'skater', frame:8 }], frameRate:1 });
     this.player.play('ride');
