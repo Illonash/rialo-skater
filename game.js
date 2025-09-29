@@ -62,7 +62,7 @@ class SplashScene extends Phaser.Scene {
     const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', {
   fontFamily: '"Shadows Into Light", cursive',
   fontSize: '28px',
-  color: '#ff4081',   // kamu bisa ganti warna sesuai selera
+  color: '#00ffff',   // kamu bisa ganti warna sesuai selera
   fontStyle: 'bold'
 }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
 
