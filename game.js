@@ -58,28 +58,10 @@ class SplashScene extends Phaser.Scene {
     this.add.text(btn.x, btn.y, 'PLAY', { fontFamily:'system-ui,sans-serif', fontSize:36, color:'#101010', fontStyle:'900' }).setOrigin(0.5);
     btn.on('pointerup', () => this.scene.start('PreviewScene'));
 
-  // “Powered by Rialo” → Twitter
-  const powered = this.add.text(GAME_W/2, GAME_H - 28, 'Powered by Rialo', {
-    fontFamily: 'system-ui, sans-serif',
-    fontSize: '18px',
-    color: '#cfd8dc'
-  })
-  .setOrigin(0.5)
-  .setInteractive({ cursor: 'pointer' });
-
-  const goRialo = () => {
-    try {
-      const ok = window.open('https://twitter.com/RialoHQ', '_blank', 'noopener');
-      if (!ok) location.href = 'https://twitter.com/RialoHQ'; // popup blockers fallback
-    } catch {
-      location.href = 'https://twitter.com/RialoHQ';
-    }
-  };
-
-  powered.on('pointerup', goRialo);
-  powered.on('pointerdown', goRialo); // helps on some mobile browsers
+    // Footer
+    this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', { fontFamily:'system-ui,sans-serif', fontSize:18, color:'#cfd8dc' }).setOrigin(0.5);
+  }
 }
-
 
 /* =========================================================
    Preview Scene (sederhana)
