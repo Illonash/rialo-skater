@@ -60,9 +60,9 @@ class SplashScene extends Phaser.Scene {
 
     // Footer interaktif "Powered by Rialo" → Twitter @RialoHQ
     const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Powered by Rialo', {
-      fontFamily:'system-ui,sans-serif',
+      fontFamily:'system-ui,bodoni',
       fontSize:18,
-      color:'#cfd8dc'
+      color:'#66cdaa'
     }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
 
     const goRialo = () => {
@@ -160,7 +160,7 @@ class GameScene extends Phaser.Scene {
 
     // Animations
     this.anims.create({ key:'ride', frames:this.anims.generateFrameNumbers('skater', {start:1, end:4}), frameRate:10, repeat:-1 });
-    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:7}), frameRate:12, repeat:0 });
+    this.anims.create({ key:'jump', frames:this.anims.generateFrameNumbers('skater', {start:5, end:6}), frameRate:12, repeat:0 });
     this.anims.create({ key:'idle', frames:[{ key:'skater', frame:0 }], frameRate:1 });
     this.anims.create({ key:'crash',frames:[{ key:'skater', frame:8 }], frameRate:1 });
     this.player.play('ride');
