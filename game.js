@@ -62,8 +62,7 @@ class SplashScene extends Phaser.Scene {
     const powered = this.add.text(GAME_W/2, GAME_H - 26, 'Built by illonashanum', {
   fontFamily: '"Shadows Into Light", cursive',
   fontSize: '28px',
-  color: '#00ffff',   // kamu bisa ganti warna sesuai selera
-  fontStyle: 'bold'
+  color: '#00ffff',   // kamu bisa ganti warna sesuai selera  
 }).setOrigin(0.5).setInteractive({ cursor:'pointer' });
 
 powered.on('pointerup', () => {
